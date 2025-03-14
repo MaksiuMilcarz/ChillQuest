@@ -18,8 +18,8 @@ def create_app(config_class=Config):
     migrate = Migrate(app, db)
     jwt = JWTManager(app)
     
-    # Configure CORS properly to allow cross-origin requests
-    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+    # Configure CORS to allow all origins and credentials
+    CORS(app, origins=["*"], supports_credentials=True, resources={r"/*": {"origins": "*"}})
     
     # Add CORS headers to every response
     @app.after_request
@@ -471,37 +471,7 @@ def create_demo_user():
         )
         db.session.add(visit)
     
-    # Add some visits to other types of locations with lower ratings
-    other_locations = Location.query.filter(Location.type != 'nightlife').limit(10).all()
-    
-    for i, location in enumerate(other_locations):
-        # Create a visit with a random date in the past year
-        days_ago = random.randint(200, 365)  # Older visits
-        visit_date = now - timedelta(days=days_ago)
-        
-        # Assign a lower rating (less enthusiastic about non-nightlife venues)
-        rating = random.choice([2, 3, 4])
-        
-        # Create less enthusiastic notes for other venue types
-        notes = ""
-        if location.type == 'nature':
-            notes = f"Nice place, but a bit too quiet for my taste. {location.name} was pretty though."
-        elif location.type == 'culture':
-            notes = f"Interesting visit to {location.name}, but wished there was more excitement."
-        elif location.type == 'food':
-            notes = f"The food at {location.name} was good. Decent atmosphere."
-        else:
-            notes = f"Visited {location.name}. It was okay."
-        
-        visit = Visit(
-            user_id=demo_user.id,
-            location_id=location.id,
-            visit_date=visit_date,
-            rating=rating,
-            notes=notes
-        )
-        db.session.add(visit)
-    
+    # Add visits for other location types as well
     db.session.commit()
 
 if __name__ == '__main__':

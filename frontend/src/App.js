@@ -5,25 +5,12 @@ import { isAuthenticated } from './services/auth';
 // Icon fix for Leaflet
 import L from 'leaflet';
 import "leaflet/dist/leaflet.css";
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
 // Pages
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
-
-// Fix Leaflet icon issues once on app load
-const fixLeafletIcon = () => {
-  // Fix the default icon issue in Leaflet
-  delete L.Icon.Default.prototype._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-    iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-    shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png'
-  });
-};
 
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
@@ -34,9 +21,15 @@ const ProtectedRoute = ({ children }) => {
 };
 
 const App = () => {
-  // Fix Leaflet icon issue on app mount
+  // Fix Leaflet icon issues on component mount
   useEffect(() => {
-    fixLeafletIcon();
+    // This fix needs to be applied early for Leaflet 
+    delete L.Icon.Default.prototype._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+      iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png'
+    });
   }, []);
 
   return (

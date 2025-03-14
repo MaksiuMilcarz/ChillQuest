@@ -36,7 +36,13 @@ const Dashboard = () => {
         console.log('Visits response:', response);
         
         if (response && response.visits) {
-          setUserVisits(response.visits);
+          // Filter out visits without location data
+          const validVisits = response.visits.filter(visit => visit.location);
+          setUserVisits(validVisits);
+          
+          if (validVisits.length < response.visits.length) {
+            console.warn(`Found ${response.visits.length - validVisits.length} visits with missing location data`);
+          }
         } else {
           console.warn('No visits found in response:', response);
           setUserVisits([]);
@@ -73,6 +79,10 @@ const Dashboard = () => {
           updatedVisits[existingIndex] = visit;
           setUserVisits(updatedVisits);
         } else {
+          // Make sure the location data is included
+          if (!visit.location && selectedLocation && selectedLocation.id === locationId) {
+            visit.location = selectedLocation;
+          }
           setUserVisits([...userVisits, visit]);
         }
       } else {
@@ -174,16 +184,18 @@ const Dashboard = () => {
             <p>You haven't visited any places yet. Click on a marker on the map to add your first visit!</p>
           ) : (
             <div>
-              {userVisits.map(visit => (
-                <LocationCard
-                  key={visit.id}
-                  location={visit.location}
-                  isVisited={visit}
-                  onVisitChange={(updatedVisit) => 
-                    handleVisitChange(visit.location_id, updatedVisit)
-                  }
-                />
-              ))}
+              {userVisits
+                .filter(visit => visit.location) // Only show visits with location data
+                .map(visit => (
+                  <LocationCard
+                    key={visit.id}
+                    location={visit.location}
+                    isVisited={visit}
+                    onVisitChange={(updatedVisit) => 
+                      handleVisitChange(visit.location_id, updatedVisit)
+                    }
+                  />
+                ))}
             </div>
           )}
         </div>

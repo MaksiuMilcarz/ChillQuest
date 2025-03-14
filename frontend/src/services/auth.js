@@ -1,17 +1,39 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// Use relative URL for APIs - will work with NGINX proxy
+const API_URL = '/api';
 
+// Simple login function using direct axios
 export const loginUser = async (credentials) => {
-  const response = await axios.post(`${API_URL}/auth/login`, credentials);
-  return response.data;
+  try {
+    const response = await axios.post(`${API_URL}/auth/login`, credentials, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Login error:', error);
+    throw error;
+  }
 };
 
+// Simple registration function using direct axios
 export const registerUser = async (userData) => {
-  const response = await axios.post(`${API_URL}/auth/register`, userData);
-  return response.data;
+  try {
+    const response = await axios.post(`${API_URL}/auth/register`, userData, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Registration error:', error);
+    throw error;
+  }
 };
 
+// Get user profile with token from localStorage
 export const getUser = async () => {
   const token = localStorage.getItem('token');
   if (!token) return null;
@@ -19,11 +41,13 @@ export const getUser = async () => {
   try {
     const response = await axios.get(`${API_URL}/auth/profile`, {
       headers: {
-        Authorization: `Bearer ${token}`
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
     });
     return response.data;
   } catch (error) {
+    console.error('Get user error:', error);
     if (error.response && error.response.status === 401) {
       // Token expired or invalid
       localStorage.removeItem('token');
@@ -33,10 +57,12 @@ export const getUser = async () => {
   }
 };
 
+// Simple auth check based on token presence
 export const isAuthenticated = () => {
   return !!localStorage.getItem('token');
 };
 
+// Logout by removing token and user data
 export const logoutUser = () => {
   localStorage.removeItem('token');
   localStorage.removeItem('user');

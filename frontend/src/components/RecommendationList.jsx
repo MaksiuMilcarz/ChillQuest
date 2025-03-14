@@ -19,21 +19,30 @@ const RecommendationList = ({ userVisits = [], onVisitChange }) => {
       try {
         let data;
         if (authenticated) {
+          console.log('Fetching personalized recommendations');
           data = await getPersonalizedRecommendations(usePersonalization);
         } else {
+          console.log('Fetching general recommendations');
           data = await getRecommendations();
         }
-        setRecommendations(data.recommendations);
+        
+        if (data && data.recommendations) {
+          console.log(`Received ${data.recommendations.length} recommendations`);
+          setRecommendations(data.recommendations);
+        } else {
+          console.warn('Invalid recommendations data:', data);
+          setRecommendations([]);
+        }
       } catch (err) {
-        setError('Failed to load recommendations');
-        console.error(err);
+        console.error('Failed to load recommendations:', err);
+        setError('Failed to load recommendations. Please try again.');
       } finally {
         setLoading(false);
       }
     };
 
     fetchRecommendations();
-  }, [authenticated, userVisits.length, usePersonalization]);
+  }, [authenticated, usePersonalization]);
 
   const handleVisitChange = (locationId, visit) => {
     onVisitChange && onVisitChange(locationId, visit);

@@ -39,8 +39,8 @@ const Register = () => {
         password: '**HIDDEN**'
       });
       
-      // Direct axios call to ensure proper registration
-      const response = await axios.post('http://localhost:8000/api/auth/register', {
+      // Direct API call with relative URL
+      const response = await axios.post('/api/auth/register', {
         username: formData.username,
         email: formData.email,
         password: formData.password
@@ -60,7 +60,13 @@ const Register = () => {
       navigate('/dashboard');
     } catch (err) {
       console.error('Registration error:', err);
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      if (err.response) {
+        setError(err.response.data.message || 'Registration failed. Please try again.');
+      } else if (err.request) {
+        setError('No response from server. Please try again.');
+      } else {
+        setError('Registration failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

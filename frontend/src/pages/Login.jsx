@@ -26,8 +26,8 @@ const Login = () => {
     try {
       console.log('Login attempt with:', formData);
       
-      // Use direct axios call instead of service for testing
-      const response = await axios.post('http://localhost:8000/api/auth/login', formData, {
+      // Direct API call with relative URL
+      const response = await axios.post('/api/auth/login', formData, {
         headers: {
           'Content-Type': 'application/json'
         }

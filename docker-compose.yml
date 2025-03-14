@@ -21,32 +21,13 @@ services:
     networks:
       - app-network
     restart: unless-stopped
-    # Initialize database before starting the app with script visible in VS Code
+    # Simplified initialization approach - use a separate init script
     command: >
       bash -c "
-        # Clean database directory
-        rm -rf /app/instance/* &&
-        # Ensure instance directory exists with proper permissions
         mkdir -p /app/instance &&
         chmod 777 /app/instance &&
-        echo 'from app import create_app
-      from models import db, Location
-
-      from app import seed_locations, create_demo_user
-
-      app = create_app()
-
-      with app.app_context():
-          db.create_all()
-          print(\"Tables created.\")
-          if Location.query.count() == 0:
-              seed_locations()
-              print(\"Locations seeded.\")
-          create_demo_user()
-          print(\"Demo user created.\")
-      ' > /app/init_db.py &&
-              python /app/init_db.py &&
-              gunicorn --bind 0.0.0.0:8000 'app:create_app()'
+        python /app/init_db.py &&
+        gunicorn --bind 0.0.0.0:8000 'app:create_app()'
       "
 
   # Frontend service
@@ -67,7 +48,3 @@ services:
 networks:
   app-network:
     driver: bridge
-
-# Using a local directory instead of a Docker volume for the database
-# volumes:
-#   backend-data:

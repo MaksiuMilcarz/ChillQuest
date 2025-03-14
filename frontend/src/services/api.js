@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Use hardcoded URL for reliability
-const API_URL = 'http://localhost:8000/api';
+// Use relative URL for APIs - will work with NGINX proxy
+const API_URL = '/api';
 
 // Create axios instance with auth header
 const api = axios.create({
@@ -18,7 +18,7 @@ api.interceptors.request.use(config => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  console.log(`API Request: ${config.method.toUpperCase()} ${config.url}`);
+  console.log(`API Request: ${config.method?.toUpperCase() || 'GET'} ${config.url}`);
   return config;
 }, error => {
   console.error("Request setup error:", error);
