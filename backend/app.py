@@ -9,6 +9,17 @@ from api.locations import locations_bp
 from api.visits import visits_bp
 from api.recommendations import recommendations_bp
 
+from flask import Flask, jsonify, request
+from flask_cors import CORS
+from flask_jwt_extended import JWTManager
+from flask_migrate import Migrate
+from models import db, User, Location, Visit
+from config import Config
+from auth.routes import auth_bp
+from api.locations import locations_bp
+from api.visits import visits_bp
+from api.recommendations import recommendations_bp
+
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
@@ -18,25 +29,18 @@ def create_app(config_class=Config):
     migrate = Migrate(app, db)
     jwt = JWTManager(app)
     
-    # Configure CORS to allow all origins and credentials
-    CORS(app, origins=["*"], supports_credentials=True, resources={r"/*": {"origins": "*"}})
+    # Configure CORS - simpler configuration
+    CORS(app)
     
-    # Add CORS headers to every response
-    @app.after_request
-    def after_request(response):
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-        return response
-    
-    # Handle OPTIONS preflight requests
-    @app.route('/api/<path:path>', methods=['OPTIONS'])
-    def handle_preflight(path):
-        response = app.make_default_options_response()
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-        return response
+    # Add a test endpoint for debugging
+    @app.route('/api/test', methods=['GET'])
+    def test_endpoint():
+        """Simple endpoint that returns a 200 OK with a JSON message"""
+        print("Test endpoint called!")
+        return jsonify({
+            "message": "Backend API is working correctly",
+            "status": "success"
+        })
     
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
@@ -47,25 +51,23 @@ def create_app(config_class=Config):
     # Add a health check endpoint
     @app.route('/api/health')
     def health_check():
-        users_count = User.query.count()
-        locations_count = Location.query.count()
-        visits_count = Visit.query.count()
-        
-        return jsonify({
-            "status": "healthy",
-            "database_path": app.config['SQLALCHEMY_DATABASE_URI'],
-            "users_count": users_count,
-            "locations_count": locations_count,
-            "visits_count": visits_count
-        })
-    
-    # Add a debug endpoint
-    @app.route('/api/debug/users')
-    def debug_users():
-        users = User.query.all()
-        return jsonify({
-            "users": [{"id": u.id, "username": u.username, "email": u.email} for u in users]
-        })
+        try:
+            users_count = User.query.count()
+            locations_count = Location.query.count()
+            visits_count = Visit.query.count()
+            
+            return jsonify({
+                "status": "healthy",
+                "database_path": app.config['SQLALCHEMY_DATABASE_URI'],
+                "users_count": users_count,
+                "locations_count": locations_count,
+                "visits_count": visits_count
+            })
+        except Exception as e:
+            return jsonify({
+                "status": "unhealthy",
+                "error": str(e)
+            }), 500
     
     return app
 

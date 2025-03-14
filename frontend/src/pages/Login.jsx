@@ -24,16 +24,12 @@ const Login = () => {
     setError('');
 
     try {
-      console.log('Login attempt with:', formData);
+      console.log('Login attempt with:', formData.username);
       
-      // Direct API call with relative URL
-      const response = await axios.post('/api/auth/login', formData, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      // Direct API call with simpler approach
+      const response = await axios.post('/api/auth/login', formData);
       
-      console.log('Login response:', response.data);
+      console.log('Login successful:', response.data);
       
       // Store token and user info
       localStorage.setItem('token', response.data.access_token);
@@ -43,15 +39,7 @@ const Login = () => {
       navigate('/dashboard');
     } catch (err) {
       console.error('Login error:', err);
-      if (err.response) {
-        console.log('Error response:', err.response.data);
-        setError(err.response.data.message || 'Login failed. Please try again.');
-      } else if (err.request) {
-        console.log('Error request:', err.request);
-        setError('No response from server. Please try again.');
-      } else {
-        setError('Login failed. Please try again.');
-      }
+      setError('Login failed. Please check your credentials and try again.');
     } finally {
       setLoading(false);
     }

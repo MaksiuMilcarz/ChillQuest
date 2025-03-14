@@ -52,7 +52,7 @@ const Register = () => {
       
       console.log('Registration successful:', response.data);
       
-      // Store token and user info
+      // IMPORTANT FIX: Use access_token from the backend response
       localStorage.setItem('token', response.data.access_token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       

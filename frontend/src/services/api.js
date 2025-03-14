@@ -1,11 +1,8 @@
 import axios from 'axios';
 
-// Use relative URL for APIs - will work with NGINX proxy
-const API_URL = '/api';
-
 // Create axios instance with auth header
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json'
   },
@@ -18,30 +15,10 @@ api.interceptors.request.use(config => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  console.log(`API Request: ${config.method?.toUpperCase() || 'GET'} ${config.url}`);
   return config;
 }, error => {
-  console.error("Request setup error:", error);
   return Promise.reject(error);
 });
-
-// Add response interceptor for debugging
-api.interceptors.response.use(
-  response => {
-    console.log(`API Response [${response.config.url}]: Success`);
-    return response;
-  },
-  error => {
-    if (error.response) {
-      console.error(`API Error [${error.config?.url}]:`, error.response.status, error.response.data);
-    } else if (error.request) {
-      console.error(`API Error [${error.config?.url}]: No response received`);
-    } else {
-      console.error(`API Error: ${error.message}`);
-    }
-    return Promise.reject(error);
-  }
-);
 
 // Locations
 export const getAllLocations = async () => {
@@ -54,30 +31,6 @@ export const getAllLocations = async () => {
   }
 };
 
-export const getLocation = async (id) => {
-  try {
-    const response = await api.get(`/locations/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error(`Error fetching location ${id}:`, error);
-    throw error;
-  }
-};
-
-export const searchLocations = async (query, type) => {
-  try {
-    const params = new URLSearchParams();
-    if (query) params.append('q', query);
-    if (type) params.append('type', type);
-    
-    const response = await api.get(`/locations/search?${params.toString()}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error searching locations:', error);
-    throw error;
-  }
-};
-
 // Visits
 export const getUserVisits = async () => {
   try {
@@ -85,12 +38,6 @@ export const getUserVisits = async () => {
     return response.data;
   } catch (error) {
     console.error('Error fetching user visits:', error);
-    if (error.response && error.response.status === 401) {
-      // Token expired or invalid
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login'; // Redirect to login on auth error
-    }
     throw error;
   }
 };
