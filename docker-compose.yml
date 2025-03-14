@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  # Backend service
+  backend:
+    build:
+      context: ./backend
+    container_name: backend
+    ports:
+      - "8000:8000"
+    environment:
+      - SECRET_KEY=travel_tracker_secure_key_5678
+      - JWT_SECRET_KEY=travel_tracker_jwt_secret_1234
+      - DATABASE_URL=sqlite:////app/instance/travel_tracker.db
+      - FLASK_ENV=development
+      - FLASK_APP=app.py
+    # Database mounted to a visible location
+    volumes:
+      - ./backend:/app
+      - ./db:/app/instance  # SQLite database will be visible in ./db folder
+    networks:
+      - app-network
+    restart: unless-stopped
+    # Initialize database before starting the app with script visible in VS Code
+    command: >
+      bash -c "
+        # Clean database directory
+        rm -rf /app/instance/* &&
+        # Ensure instance directory exists with proper permissions
+        mkdir -p /app/instance &&
+        chmod 777 /app/instance &&
+        echo 'from app import create_app
+      from models import db, Location
+
+      from app import seed_locations, create_demo_user
+
+      app = create_app()
+
+      with app.app_context():
+          db.create_all()
+          print(\"Tables created.\")
+          if Location.query.count() == 0:
+              seed_locations()
+              print(\"Locations seeded.\")
+          create_demo_user()
+          print(\"Demo user created.\")
+      ' > /app/init_db.py &&
+              python /app/init_db.py &&
+              gunicorn --bind 0.0.0.0:8000 'app:create_app()'
+      "
+
+  # Frontend service
+  frontend:
+    build:
+      context: ./frontend
+    container_name: frontend
+    ports:
+      - "80:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000/api
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+
+# Using a local directory instead of a Docker volume for the database
+# volumes:
+#   backend-data:
