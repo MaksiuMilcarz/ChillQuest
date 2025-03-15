@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { getAllLocations, getRecommendations } from '../services/api';
 
-// Custom marker icons
+// Create custom marker icons
 const defaultIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
@@ -34,39 +34,54 @@ const recommendedIcon = new L.Icon({
 
 const Map = ({ userVisits = [], onMarkerClick }) => {
   const [locations, setLocations] = useState([]);
-  const [recommendedLocations, setRecommendedLocations] = useState([]);
+  const [recommendedLocationIds, setRecommendedLocationIds] = useState(new Set()); 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      
       try {
-        setLoading(true);
+        // Use Promise.all to fetch locations and recommendations in parallel
+        const [locationsResponse, recommendationsResponse] = await Promise.all([
+          getAllLocations(),
+          getRecommendations()
+        ]);
         
-        // Fetch all locations
-        const locationsResponse = await getAllLocations();
-        console.log('Locations fetched:', locationsResponse);
+        console.log('Locations response:', locationsResponse);
+        console.log('Recommendations response:', recommendationsResponse);
         
+        // Process locations
         if (locationsResponse && locationsResponse.locations) {
           setLocations(locationsResponse.locations);
         } else {
           throw new Error('Invalid location data format');
         }
         
-        // Fetch recommendations in parallel
-        try {
-          const recommendationsResponse = await getRecommendations();
-          if (recommendationsResponse && recommendationsResponse.recommendations) {
-            // Create a set of recommended location IDs for easy lookup
-            const recommendedIds = new Set(recommendationsResponse.recommendations.map(loc => loc.id));
-            setRecommendedLocations(recommendedIds);
-          }
-        } catch (recError) {
-          console.warn('Could not load recommendations, continuing with locations only:', recError);
+        // Process recommendations
+        if (recommendationsResponse && recommendationsResponse.recommendations) {
+          // Create a set of recommended location IDs for easy lookup
+          const recIds = new Set(recommendationsResponse.recommendations.map(loc => loc.id));
+          setRecommendedLocationIds(recIds);
+          console.log('Recommended location IDs:', [...recIds]);
         }
       } catch (err) {
         console.error('Failed to load map data:', err);
         setError('Failed to load map data. Please try refreshing the page.');
+        
+        // If at least locations loaded, show them anyway
+        if (locations.length === 0) {
+          try {
+            const fallbackLocations = await getAllLocations();
+            if (fallbackLocations && fallbackLocations.locations) {
+              setLocations(fallbackLocations.locations);
+            }
+          } catch (fallbackErr) {
+            console.error('Failed to load fallback locations:', fallbackErr);
+          }
+        }
       } finally {
         setLoading(false);
       }
@@ -75,14 +90,34 @@ const Map = ({ userVisits = [], onMarkerClick }) => {
     fetchData();
   }, []);
 
-  // Create a set of location IDs that user has visited
+  // Debug user visits whenever they change
+  useEffect(() => {
+    console.log('User visits updated:', userVisits);
+    // Print out location IDs that should be marked as visited
+    if (userVisits && userVisits.length > 0) {
+      const visitedIds = userVisits.map(visit => visit.location_id);
+      console.log('Visited location IDs:', visitedIds);
+    }
+  }, [userVisits]);
+
+  // Create a set of location IDs that user has visited (for quick lookup)
   const visitedLocationIds = new Set(userVisits.map(visit => visit.location_id));
+
+  // Debug function to check marker status
+  const getMarkerStatus = (locationId) => {
+    const isVisited = visitedLocationIds.has(locationId);
+    const isRecommended = recommendedLocationIds.has(locationId);
+    return { isVisited, isRecommended };
+  };
 
   // Helper function to determine which icon to use
   const getMarkerIcon = (locationId) => {
-    if (visitedLocationIds.has(locationId)) {
+    const status = getMarkerStatus(locationId);
+    console.log(`Location ${locationId} status:`, status);
+    
+    if (status.isVisited) {
       return visitedIcon;
-    } else if (recommendedLocations.has(locationId)) {
+    } else if (status.isRecommended) {
       return recommendedIcon;
     }
     return defaultIcon;
@@ -122,7 +157,7 @@ const Map = ({ userVisits = [], onMarkerClick }) => {
                 {visitedLocationIds.has(location.id) && (
                   <p className="text-green-600 font-semibold">✓ Visited</p>
                 )}
-                {recommendedLocations.has(location.id) && (
+                {recommendedLocationIds.has(location.id) && (
                   <p className="text-yellow-500 font-semibold">⭐ Recommended</p>
                 )}
               </div>

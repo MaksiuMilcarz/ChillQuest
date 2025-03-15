@@ -416,10 +416,249 @@ def seed_locations():
         }
     ]
     
+    # Additional locations to add to the existing seed_locations function in app.py
+
+    additional_locations = [
+        # More Nature locations
+        {
+            'name': 'Great Barrier Reef',
+            'city': 'Queensland',
+            'country': 'Australia',
+            'description': 'The world\'s largest coral reef system, visible from space.',
+            'price_level': 4,
+            'type': 'nature',
+            'rating': 4.9,
+            'latitude': -18.2871,
+            'longitude': 147.6992
+        },
+        {
+            'name': 'Yellowstone National Park',
+            'city': 'Wyoming',
+            'country': 'USA',
+            'description': 'Famous for its wildlife and geothermal features like Old Faithful.',
+            'price_level': 2,
+            'type': 'nature',
+            'rating': 4.8,
+            'latitude': 44.4280,
+            'longitude': -110.5885
+        },
+        {
+            'name': 'Victoria Falls',
+            'city': 'Livingstone',
+            'country': 'Zambia/Zimbabwe',
+            'description': 'One of the largest waterfalls in the world.',
+            'price_level': 3,
+            'type': 'nature',
+            'rating': 4.9,
+            'latitude': -17.9243,
+            'longitude': 25.8572
+        },
+        {
+            'name': 'Santorini',
+            'city': 'Cyclades',
+            'country': 'Greece',
+            'description': 'Known for its white-washed houses with blue domes overlooking the sea.',
+            'price_level': 4,
+            'type': 'nature',
+            'rating': 4.7,
+            'latitude': 36.3932,
+            'longitude': 25.4615
+        },
+        
+        # More Recreational locations
+        {
+            'name': 'Tokyo Disneyland',
+            'city': 'Tokyo',
+            'country': 'Japan',
+            'description': 'The first Disney park outside the United States.',
+            'price_level': 4,
+            'type': 'recreational',
+            'rating': 4.6,
+            'latitude': 35.6329,
+            'longitude': 139.8804
+        },
+        {
+            'name': 'Copacabana Beach',
+            'city': 'Rio de Janeiro',
+            'country': 'Brazil',
+            'description': 'Famous beach known for its white sand and lively atmosphere.',
+            'price_level': 2,
+            'type': 'recreational',
+            'rating': 4.5,
+            'latitude': -22.9868,
+            'longitude': -43.1896
+        },
+        {
+            'name': 'Dubai Miracle Garden',
+            'city': 'Dubai',
+            'country': 'UAE',
+            'description': 'The world\'s largest natural flower garden with over 50 million flowers.',
+            'price_level': 3,
+            'type': 'recreational',
+            'rating': 4.4,
+            'latitude': 25.0661,
+            'longitude': 55.2428
+        },
+        {
+            'name': 'Eden Project',
+            'city': 'Cornwall',
+            'country': 'UK',
+            'description': 'Huge biomes housing plant species from around the world.',
+            'price_level': 3,
+            'type': 'recreational',
+            'rating': 4.5,
+            'latitude': 50.3601,
+            'longitude': -4.7447
+        },
+        
+        # More Nightlife locations
+        {
+            'name': 'Club Space',
+            'city': 'Miami',
+            'country': 'USA',
+            'description': 'Iconic club known for its marathon DJ sets and terrace.',
+            'price_level': 4,
+            'type': 'nightlife',
+            'rating': 4.5,
+            'latitude': 25.7860,
+            'longitude': -80.1954
+        },
+        {
+            'name': 'Ushuaïa',
+            'city': 'Ibiza',
+            'country': 'Spain',
+            'description': 'Famous open-air club with pool parties and world-class DJs.',
+            'price_level': 5,
+            'type': 'nightlife',
+            'rating': 4.7,
+            'latitude': 38.8839,
+            'longitude': 1.4096
+        },
+        {
+            'name': 'KU DE TA',
+            'city': 'Bali',
+            'country': 'Indonesia',
+            'description': 'Beach club with spectacular sunset views over the ocean.',
+            'price_level': 4,
+            'type': 'nightlife',
+            'rating': 4.6,
+            'latitude': -8.6785,
+            'longitude': 115.1569
+        },
+        {
+            'name': 'Tresor',
+            'city': 'Berlin',
+            'country': 'Germany',
+            'description': 'Historic techno club set in a former power plant.',
+            'price_level': 2,
+            'type': 'nightlife',
+            'rating': 4.6,
+            'latitude': 52.5110,
+            'longitude': 13.4186
+        },
+        
+        # More Culture locations
+        {
+            'name': 'Machu Picchu',
+            'city': 'Cusco Region',
+            'country': 'Peru',
+            'description': 'Ancient Incan citadel set high in the Andes Mountains.',
+            'price_level': 4,
+            'type': 'culture',
+            'rating': 4.9,
+            'latitude': -13.1631,
+            'longitude': -72.5450
+        },
+        {
+            'name': 'Taj Mahal',
+            'city': 'Agra',
+            'country': 'India',
+            'description': 'Iconic marble mausoleum and UNESCO World Heritage Site.',
+            'price_level': 2,
+            'type': 'culture',
+            'rating': 4.8,
+            'latitude': 27.1751,
+            'longitude': 78.0421
+        },
+        {
+            'name': 'Forbidden City',
+            'city': 'Beijing',
+            'country': 'China',
+            'description': 'Imperial palace complex from the Ming dynasty to the Qing dynasty.',
+            'price_level': 2,
+            'type': 'culture',
+            'rating': 4.7,
+            'latitude': 39.9163,
+            'longitude': 116.3972
+        },
+        {
+            'name': 'Vatican Museums',
+            'city': 'Vatican City',
+            'country': 'Vatican City',
+            'description': 'Museums featuring some of the world\'s most important art collections.',
+            'price_level': 3,
+            'type': 'culture',
+            'rating': 4.7,
+            'latitude': 41.9064,
+            'longitude': 12.4534
+        },
+        
+        # More Food locations
+        {
+            'name': 'La Boqueria Market',
+            'city': 'Barcelona',
+            'country': 'Spain',
+            'description': 'Famous public market with fresh food, tapas bars, and restaurants.',
+            'price_level': 2,
+            'type': 'food',
+            'rating': 4.7,
+            'latitude': 41.3818,
+            'longitude': 2.1724
+        },
+        {
+            'name': 'Noma',
+            'city': 'Copenhagen',
+            'country': 'Denmark',
+            'description': 'Award-winning restaurant known for its reinvention of Nordic cuisine.',
+            'price_level': 5,
+            'type': 'food',
+            'rating': 4.9,
+            'latitude': 55.6833,
+            'longitude': 12.6103
+        },
+        {
+            'name': 'Katz\'s Delicatessen',
+            'city': 'New York',
+            'country': 'USA',
+            'description': 'Iconic deli famous for its pastrami sandwiches.',
+            'price_level': 3,
+            'type': 'food',
+            'rating': 4.5,
+            'latitude': 40.7223,
+            'longitude': -73.9874
+        },
+        {
+            'name': 'Tsukiji Outer Market',
+            'city': 'Tokyo',
+            'country': 'Japan',
+            'description': 'Famous market with hundreds of shops selling fresh seafood and produce.',
+            'price_level': 3,
+            'type': 'food',
+            'rating': 4.6,
+            'latitude': 35.6654,
+            'longitude': 139.7707
+        }
+    ]
+    
     for loc_data in locations:
         location = Location(**loc_data)
         db.session.add(location)
     
+    db.session.commit()
+    
+    for loc_data in additional_locations:
+        additional_locations = Location(**loc_data)
+        db.session.add(additional_locations)
     db.session.commit()
     
     # After locations are added, create a demo user with visits
