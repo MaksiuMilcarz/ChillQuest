@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { isAuthenticated, clearAuthOnStart } from './services/auth';
+import axios from 'axios';
 
 // Import Leaflet CSS early to ensure proper loading
 import "leaflet/dist/leaflet.css";
@@ -10,7 +11,6 @@ import L from 'leaflet';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
-import Profile from './pages/Profile';
 
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
@@ -34,6 +34,12 @@ const App = () => {
       shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png'
     });
     
+    // Set up auth token for API
+    const token = localStorage.getItem('token');
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
+    
     // Force the base URL for the application
     document.head.innerHTML += `
       <base href="${window.location.origin}/">
@@ -50,14 +56,6 @@ const App = () => {
           element={
             <ProtectedRoute>
               <Dashboard />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/profile" 
-          element={
-            <ProtectedRoute>
-              <Profile />
             </ProtectedRoute>
           } 
         />

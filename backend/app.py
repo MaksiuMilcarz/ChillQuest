@@ -647,6 +647,179 @@ def seed_locations():
             'rating': 4.6,
             'latitude': 35.6654,
             'longitude': 139.7707
+        },
+        {
+            'name': 'Lake Baikal',
+            'city': 'Siberia',
+            'country': 'Russia',
+            'description': 'The deepest and oldest lake in the world containing 20% of world\'s unfrozen freshwater.',
+            'price_level': 3,
+            'type': 'nature',
+            'rating': 4.9,
+            'latitude': 53.5587,
+            'longitude': 108.1650
+        },
+        {
+            'name': 'Bryce Canyon',
+            'city': 'Utah',
+            'country': 'USA',
+            'description': 'Famous for its unique geology of red rock spires called hoodoos.',
+            'price_level': 2,
+            'type': 'nature',
+            'rating': 4.8,
+            'latitude': 37.6283,
+            'longitude': -112.1676
+        },
+        {
+            'name': 'Plitvice Lakes',
+            'city': 'Lika-Senj County',
+            'country': 'Croatia',
+            'description': 'Cascading lakes known for their distinctive colors and waterfalls.',
+            'price_level': 2,
+            'type': 'nature',
+            'rating': 4.9,
+            'latitude': 44.8654,
+            'longitude': 15.5820
+        },
+
+        # More Recreational locations
+        {
+            'name': 'Gardens by the Bay',
+            'city': 'Singapore',
+            'country': 'Singapore',
+            'description': 'Futuristic park featuring massive Supertrees and stunning conservatories.',
+            'price_level': 3,
+            'type': 'recreational',
+            'rating': 4.7,
+            'latitude': 1.2816,
+            'longitude': 103.8636
+        },
+        {
+            'name': 'Bora Bora Lagoon',
+            'city': 'Bora Bora',
+            'country': 'French Polynesia',
+            'description': 'Iconic turquoise lagoon with luxury overwater bungalows and coral reefs.',
+            'price_level': 5,
+            'type': 'recreational',
+            'rating': 4.9,
+            'latitude': -16.5004,
+            'longitude': -151.7415
+        },
+        {
+            'name': 'Blue Lagoon',
+            'city': 'Grindavík',
+            'country': 'Iceland',
+            'description': 'Geothermal spa with mineral-rich waters known for relaxation and skin benefits.',
+            'price_level': 4,
+            'type': 'recreational',
+            'rating': 4.6,
+            'latitude': 63.8804,
+            'longitude': -22.4495
+        },
+
+        # More Nightlife locations
+        {
+            'name': 'Mykonos Nightlife District',
+            'city': 'Mykonos',
+            'country': 'Greece',
+            'description': 'Famous island featuring numerous bars, clubs, and beach parties.',
+            'price_level': 4,
+            'type': 'nightlife',
+            'rating': 4.7,
+            'latitude': 37.4467,
+            'longitude': 25.3289
+        },
+        {
+            'name': 'Lan Kwai Fong',
+            'city': 'Hong Kong',
+            'country': 'China',
+            'description': 'Popular nightlife district with over 90 restaurants and bars.',
+            'price_level': 4,
+            'type': 'nightlife',
+            'rating': 4.5,
+            'latitude': 22.2808,
+            'longitude': 114.1551
+        },
+        {
+            'name': 'Shibuya Crossing',
+            'city': 'Tokyo',
+            'country': 'Japan',
+            'description': 'Iconic intersection surrounded by neon lights, shopping, and nightlife.',
+            'price_level': 3,
+            'type': 'nightlife',
+            'rating': 4.7,
+            'latitude': 35.6594,
+            'longitude': 139.7005
+        },
+
+        # More Culture locations
+        {
+            'name': 'Petra',
+            'city': 'Ma\'an Governorate',
+            'country': 'Jordan',
+            'description': 'Ancient city carved into rose-colored stone, one of the New Seven Wonders of the World.',
+            'price_level': 3,
+            'type': 'culture',
+            'rating': 4.9,
+            'latitude': 30.3285,
+            'longitude': 35.4444
+        },
+        {
+            'name': 'Angkor Wat',
+            'city': 'Siem Reap',
+            'country': 'Cambodia',
+            'description': 'Largest religious monument in the world, originally constructed as a Hindu temple.',
+            'price_level': 2,
+            'type': 'culture',
+            'rating': 4.9,
+            'latitude': 13.4125,
+            'longitude': 103.8670
+        },
+        {
+            'name': 'Chichen Itza',
+            'city': 'Yucatan',
+            'country': 'Mexico',
+            'description': 'Large pre-Columbian archaeological site built by the Maya civilization.',
+            'price_level': 2,
+            'type': 'culture',
+            'rating': 4.8,
+            'latitude': 20.6843,
+            'longitude': -88.5677
+        },
+
+        # More Food locations
+        {
+            'name': 'Tsukiji Outer Market',
+            'city': 'Tokyo',
+            'country': 'Japan',
+            'description': 'Historic marketplace offering fresh seafood, produce, and kitchen tools.',
+            'price_level': 3,
+            'type': 'food',
+            'rating': 4.7,
+            'latitude': 35.6654,
+            'longitude': 139.7707
+        },
+        {
+            'name': 'Mercado de San Miguel',
+            'city': 'Madrid',
+            'country': 'Spain',
+            'description': 'Covered market filled with tapas bars and gourmet food vendors.',
+            'price_level': 3,
+            'type': 'food',
+            'rating': 4.6,
+            'latitude': 40.4153,
+            'longitude': -3.7089
+        },
+        {
+            'name': 'Marrakech Medina Food Markets',
+            'city': 'Marrakech',
+            'country': 'Morocco',
+            'description': 'Vibrant markets offering traditional Moroccan cuisine, spices, and street food.',
+            'price_level': 2,
+            'type': 'food',
+            'rating': 4.7,
+            'latitude': 31.6295,
+            'longitude': -7.9811
         }
     ]
     
@@ -657,8 +830,8 @@ def seed_locations():
     db.session.commit()
     
     for loc_data in additional_locations:
-        additional_locations = Location(**loc_data)
-        db.session.add(additional_locations)
+        location = Location(**loc_data)
+        db.session.add(location)
     db.session.commit()
     
     # After locations are added, create a demo user with visits

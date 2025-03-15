@@ -57,10 +57,20 @@ export const getUserVisits = async () => {
 
 export const addVisit = async (visitData) => {
   try {
+    // Ensure location_id is a number
+    if (visitData.location_id) {
+      visitData.location_id = parseInt(visitData.location_id, 10);
+    }
+    
+    console.log('Sending visit data:', JSON.stringify(visitData));
     const response = await api.post('/visits/', visitData);
     return response.data;
   } catch (error) {
     console.error('Error adding visit:', error);
+    // Check for specific error details
+    if (error.response && error.response.data && error.response.data.message) {
+      throw new Error(`Failed to add visit: ${error.response.data.message}`);
+    }
     throw error;
   }
 };

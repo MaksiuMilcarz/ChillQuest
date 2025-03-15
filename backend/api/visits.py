@@ -41,9 +41,19 @@ def add_visit():
     user_id = get_jwt_identity()
     data = request.get_json()
     
-    # Validate input
+    # Improved validation with better error handling
+    if not data:
+        return jsonify({'message': 'No JSON data provided'}), 400
+        
     if 'location_id' not in data:
         return jsonify({'message': 'location_id is required'}), 400
+    
+    # Ensure location_id is an integer
+    try:
+        location_id = int(data['location_id'])
+        data['location_id'] = location_id
+    except (ValueError, TypeError):
+        return jsonify({'message': 'location_id must be an integer'}), 400
     
     print(f"Add/update visit - User: {user_id}, Location: {data['location_id']}")
     

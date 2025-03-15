@@ -1,94 +1,154 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { getAllLocations, getRecommendations } from '../services/api';
 
-// Create custom marker icons
-const defaultIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
-
-const visitedIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
-
-const recommendedIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
+// Custom hook to handle icon loading
+function useLeafletIcons() {
+  const [iconsLoaded, setIconsLoaded] = useState(false);
+  
+  // Create refs for all custom icons
+  const defaultIconRef = useRef(null);
+  const visitedIconRef = useRef(null);
+  const recommendedIconRef = useRef(null);
+  
+  useEffect(() => {
+    // Create the icons only once
+    defaultIconRef.current = new L.Icon({
+      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+    });
+    
+    visitedIconRef.current = new L.Icon({
+      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+    });
+    
+    recommendedIconRef.current = new L.Icon({
+      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+    });
+    
+    // Function to preload all images
+    const preloadImages = () => {
+      const iconUrls = [
+        'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+        'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+        'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
+        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png'
+      ];
+      
+      // Track how many images have loaded
+      let loadedCount = 0;
+      
+      iconUrls.forEach(url => {
+        const img = new Image();
+        img.onload = () => {
+          loadedCount++;
+          if (loadedCount === iconUrls.length) {
+            console.log('All map icons loaded');
+            setIconsLoaded(true);
+          }
+        };
+        img.onerror = () => {
+          console.error(`Failed to load icon: ${url}`);
+          loadedCount++;
+          if (loadedCount === iconUrls.length) {
+            // Still set loaded to true even if there are errors
+            // to prevent the app from hanging
+            setIconsLoaded(true);
+          }
+        };
+        img.src = url;
+      });
+    };
+    
+    preloadImages();
+  }, []);
+  
+  // Return the icons and loading state
+  return { 
+    defaultIcon: defaultIconRef.current, 
+    visitedIcon: visitedIconRef.current, 
+    recommendedIcon: recommendedIconRef.current,
+    iconsLoaded 
+  };
+}
 
 const Map = ({ userVisits = [], onMarkerClick }) => {
   const [locations, setLocations] = useState([]);
   const [recommendedLocationIds, setRecommendedLocationIds] = useState(new Set()); 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
+  const { defaultIcon, visitedIcon, recommendedIcon, iconsLoaded } = useLeafletIcons();
+  
+  // Only fetch data and render map when icons are loaded
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      
-      try {
-        // Use Promise.all to fetch locations and recommendations in parallel
-        const [locationsResponse, recommendationsResponse] = await Promise.all([
-          getAllLocations(),
-          getRecommendations()
-        ]);
+    if (iconsLoaded) {
+      const fetchData = async () => {
+        setLoading(true);
+        setError(null);
         
-        console.log('Locations response:', locationsResponse);
-        console.log('Recommendations response:', recommendationsResponse);
-        
-        // Process locations
-        if (locationsResponse && locationsResponse.locations) {
-          setLocations(locationsResponse.locations);
-        } else {
-          throw new Error('Invalid location data format');
-        }
-        
-        // Process recommendations
-        if (recommendationsResponse && recommendationsResponse.recommendations) {
-          // Create a set of recommended location IDs for easy lookup
-          const recIds = new Set(recommendationsResponse.recommendations.map(loc => loc.id));
-          setRecommendedLocationIds(recIds);
-          console.log('Recommended location IDs:', [...recIds]);
-        }
-      } catch (err) {
-        console.error('Failed to load map data:', err);
-        setError('Failed to load map data. Please try refreshing the page.');
-        
-        // If at least locations loaded, show them anyway
-        if (locations.length === 0) {
-          try {
-            const fallbackLocations = await getAllLocations();
-            if (fallbackLocations && fallbackLocations.locations) {
-              setLocations(fallbackLocations.locations);
-            }
-          } catch (fallbackErr) {
-            console.error('Failed to load fallback locations:', fallbackErr);
+        try {
+          // Use Promise.all to fetch locations and recommendations in parallel
+          const [locationsResponse, recommendationsResponse] = await Promise.all([
+            getAllLocations(),
+            getRecommendations()
+          ]);
+          
+          console.log('Locations response:', locationsResponse);
+          console.log('Recommendations response:', recommendationsResponse);
+          
+          // Process locations
+          if (locationsResponse && locationsResponse.locations) {
+            setLocations(locationsResponse.locations);
+          } else {
+            throw new Error('Invalid location data format');
           }
+          
+          // Process recommendations
+          if (recommendationsResponse && recommendationsResponse.recommendations) {
+            // Create a set of recommended location IDs for easy lookup
+            const recIds = new Set(recommendationsResponse.recommendations.map(loc => loc.id));
+            setRecommendedLocationIds(recIds);
+            console.log('Recommended location IDs:', [...recIds]);
+          }
+        } catch (err) {
+          console.error('Failed to load map data:', err);
+          setError('Failed to load map data. Please try refreshing the page.');
+          
+          // If at least locations loaded, show them anyway
+          if (locations.length === 0) {
+            try {
+              const fallbackLocations = await getAllLocations();
+              if (fallbackLocations && fallbackLocations.locations) {
+                setLocations(fallbackLocations.locations);
+              }
+            } catch (fallbackErr) {
+              console.error('Failed to load fallback locations:', fallbackErr);
+            }
+          }
+        } finally {
+          setLoading(false);
         }
-      } finally {
-        setLoading(false);
-      }
-    };
+      };
 
-    fetchData();
-  }, []);
+      fetchData();
+    }
+  }, [iconsLoaded, userVisits]); // This ensures the map refreshes when user visits change
 
   // Debug user visits whenever they change
   useEffect(() => {
@@ -103,31 +163,21 @@ const Map = ({ userVisits = [], onMarkerClick }) => {
   // Create a set of location IDs that user has visited (for quick lookup)
   const visitedLocationIds = new Set(userVisits.map(visit => visit.location_id));
 
-  // Debug function to check marker status
-  const getMarkerStatus = (locationId) => {
-    const isVisited = visitedLocationIds.has(locationId);
-    const isRecommended = recommendedLocationIds.has(locationId);
-    return { isVisited, isRecommended };
-  };
-
   // Helper function to determine which icon to use
   const getMarkerIcon = (locationId) => {
-    const status = getMarkerStatus(locationId);
-    console.log(`Location ${locationId} status:`, status);
-    
-    if (status.isVisited) {
+    if (visitedLocationIds.has(locationId)) {
       return visitedIcon;
-    } else if (status.isRecommended) {
+    } else if (recommendedLocationIds.has(locationId)) {
       return recommendedIcon;
     }
     return defaultIcon;
   };
 
-  if (loading) return <div className="h-full flex items-center justify-center">Loading map...</div>;
+  if (!iconsLoaded || loading) return <div className="h-full flex items-center justify-center">Loading map...</div>;
   if (error) return <div className="h-full flex items-center justify-center text-red-500">{error}</div>;
 
   return (
-    <div className="h-full w-full">
+    <div className="h-full w-full relative">
       <MapContainer 
         center={[20, 0]} 
         zoom={2} 

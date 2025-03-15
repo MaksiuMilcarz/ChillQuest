@@ -103,9 +103,9 @@ const LocationCard = ({ location, isVisited, onVisitChange }) => {
         setSuccess('Visit removed successfully');
         onVisitChange && onVisitChange(null);
       } else {
-        // Add visit
+        // Add visit - ensure location_id is a number
         const visitData = {
-          location_id: location.id,
+          location_id: parseInt(location.id, 10), // Ensure it's a number
           rating: rating > 0 ? rating : undefined,
           notes: notes.trim() || undefined
         };
