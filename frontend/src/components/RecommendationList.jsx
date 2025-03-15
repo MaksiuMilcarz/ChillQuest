@@ -19,8 +19,14 @@ const RecommendationList = ({ userVisits = [], onVisitChange }) => {
       try {
         let data;
         if (authenticated) {
-          console.log('Fetching personalized recommendations');
-          data = await getPersonalizedRecommendations(usePersonalization);
+          // Try personalized first, fall back to general if it fails
+          try {
+            console.log('Fetching personalized recommendations');
+            data = await getPersonalizedRecommendations(usePersonalization);
+          } catch (err) {
+            console.warn('Failed to get personalized recommendations, falling back to general', err);
+            data = await getRecommendations();
+          }
         } else {
           console.log('Fetching general recommendations');
           data = await getRecommendations();
@@ -53,8 +59,7 @@ const RecommendationList = ({ userVisits = [], onVisitChange }) => {
   };
 
   if (loading) return <div className="p-4">Loading recommendations...</div>;
-  if (error) return <div className="p-4 text-red-500">{error}</div>;
-
+  
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-4">
@@ -77,6 +82,18 @@ const RecommendationList = ({ userVisits = [], onVisitChange }) => {
           </div>
         )}
       </div>
+      
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+          <button 
+            onClick={() => window.location.reload()}
+            className="underline ml-2"
+          >
+            Try Again
+          </button>
+        </div>
+      )}
       
       {recommendations.length === 0 ? (
         <p>No recommendations available at this time.</p>

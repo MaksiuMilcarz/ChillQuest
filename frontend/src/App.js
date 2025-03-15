@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { isAuthenticated } from './services/auth';
+import { isAuthenticated, clearAuthOnStart } from './services/auth';
 
-// Icon fix for Leaflet
-import L from 'leaflet';
+// Import Leaflet CSS early to ensure proper loading
 import "leaflet/dist/leaflet.css";
+import L from 'leaflet';
 
 // Pages
 import Login from './pages/Login';
@@ -23,13 +23,21 @@ const ProtectedRoute = ({ children }) => {
 const App = () => {
   // Fix Leaflet icon issues on component mount
   useEffect(() => {
-    // This fix needs to be applied early for Leaflet 
+    // Clear any existing auth data on app load - to prevent auto-login
+    clearAuthOnStart();
+    
+    // Fix Leaflet icon issues once on load
     delete L.Icon.Default.prototype._getIconUrl;
     L.Icon.Default.mergeOptions({
       iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
       iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
       shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png'
     });
+    
+    // Force the base URL for the application
+    document.head.innerHTML += `
+      <base href="${window.location.origin}/">
+    `;
   }, []);
 
   return (
@@ -53,7 +61,7 @@ const App = () => {
             </ProtectedRoute>
           } 
         />
-        <Route path="/" element={<Navigate to="/dashboard" />} />
+        <Route path="/" element={<Navigate to="/login" />} />
       </Routes>
     </Router>
   );

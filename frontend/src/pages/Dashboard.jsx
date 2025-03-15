@@ -17,6 +17,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const authenticated = isAuthenticated();
 
+  // Load user visits when component mounts
   useEffect(() => {
     // Check if user is authenticated
     if (!authenticated) {
@@ -123,9 +124,9 @@ const Dashboard = () => {
         </div>
       )}
       
-      <div className="flex-grow flex">
+      <div className="flex-grow flex flex-col md:flex-row">
         {/* Left side - Map or Recommendations */}
-        <div className="w-2/3 h-full overflow-hidden">
+        <div className="w-full md:w-2/3 h-[60vh] md:h-full overflow-hidden">
           <div className="bg-white p-4 shadow-sm">
             <div className="flex border-b">
               <button
@@ -169,7 +170,7 @@ const Dashboard = () => {
         </div>
         
         {/* Right side - Selected Location or Visits */}
-        <div className="w-1/3 bg-gray-100 p-4 overflow-y-auto">
+        <div className="w-full md:w-1/3 bg-gray-100 p-4 overflow-y-auto">
           <h2 className="text-2xl font-bold mb-4">
             {selectedLocation ? 'Selected Location' : 'Your Visited Places'}
           </h2>

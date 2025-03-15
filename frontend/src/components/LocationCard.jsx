@@ -6,6 +6,7 @@ const LocationCard = ({ location, isVisited, onVisitChange }) => {
   const [notes, setNotes] = useState(isVisited?.notes || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   // Update local state when props change
   useEffect(() => {
@@ -26,59 +27,68 @@ const LocationCard = ({ location, isVisited, onVisitChange }) => {
   const handleVisitToggle = async () => {
     setLoading(true);
     setError('');
+    setSuccess('');
     
     try {
       console.log('Toggle visit for location:', location.id);
       
       if (isVisited) {
-        // Delete visit
+        // Delete visit - ensure we have an ID
+        if (!isVisited.id) {
+          throw new Error('Cannot delete visit: missing ID');
+        }
+        
         await deleteVisit(isVisited.id);
-        console.log('Visit deleted successfully');
+        setSuccess('Visit removed successfully');
         onVisitChange && onVisitChange(null);
       } else {
         // Add visit
         const visitData = {
           location_id: location.id,
           rating: rating > 0 ? rating : undefined,
-          notes: notes || undefined
+          notes: notes.trim() || undefined
         };
         console.log('Adding visit with data:', visitData);
         
         const response = await addVisit(visitData);
         console.log('Visit added:', response);
+        setSuccess('Location marked as visited');
         onVisitChange && onVisitChange(response.visit);
       }
     } catch (err) {
       console.error('Failed to update visit:', err);
-      setError(err.response?.data?.message || 'Failed to update visit. Please try again.');
+      setError('Failed to update visit. Please ensure you are logged in and try again.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleRatingChange = async (newRating) => {
-    if (!isVisited) return;
-    
-    setLoading(true);
-    setError('');
     setRating(newRating);
     
-    try {
-      console.log('Updating rating for location:', location.id);
+    if (isVisited) {
+      setLoading(true);
+      setError('');
+      setSuccess('');
       
-      const response = await addVisit({
-        location_id: location.id,
-        rating: newRating,
-        notes
-      });
-      
-      console.log('Rating updated:', response);
-      onVisitChange && onVisitChange(response.visit);
-    } catch (err) {
-      console.error('Failed to update rating:', err);
-      setError(err.response?.data?.message || 'Failed to update rating');
-    } finally {
-      setLoading(false);
+      try {
+        console.log('Updating rating for location:', location.id);
+        
+        const response = await addVisit({
+          location_id: location.id,
+          rating: newRating,
+          notes
+        });
+        
+        console.log('Rating updated:', response);
+        setSuccess('Rating updated');
+        onVisitChange && onVisitChange(response.visit);
+      } catch (err) {
+        console.error('Failed to update rating:', err);
+        setError('Failed to update rating');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -87,6 +97,7 @@ const LocationCard = ({ location, isVisited, onVisitChange }) => {
     
     setLoading(true);
     setError('');
+    setSuccess('');
     
     try {
       console.log('Updating notes for location:', location.id);
@@ -98,10 +109,11 @@ const LocationCard = ({ location, isVisited, onVisitChange }) => {
       });
       
       console.log('Notes updated:', response);
+      setSuccess('Notes updated');
       onVisitChange && onVisitChange(response.visit);
     } catch (err) {
       console.error('Failed to update notes:', err);
-      setError(err.response?.data?.message || 'Failed to update notes');
+      setError('Failed to update notes');
     } finally {
       setLoading(false);
     }
@@ -153,6 +165,10 @@ const LocationCard = ({ location, isVisited, onVisitChange }) => {
       
       {error && (
         <p className="mt-2 text-red-500 text-sm">{error}</p>
+      )}
+      
+      {success && (
+        <p className="mt-2 text-green-500 text-sm">{success}</p>
       )}
       
       {isVisited && (

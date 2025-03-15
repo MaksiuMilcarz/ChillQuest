@@ -5,8 +5,7 @@ const api = axios.create({
   baseURL: '/api',
   headers: {
     'Content-Type': 'application/json'
-  },
-  timeout: 10000 // 10 seconds timeout
+  }
 });
 
 // Add auth token to requests
@@ -14,16 +13,30 @@ api.interceptors.request.use(config => {
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+    console.log('Using token in request');
   }
   return config;
-}, error => {
-  return Promise.reject(error);
 });
+
+// Handle token errors globally
+api.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response && error.response.status === 401) {
+      // Redirect to login on auth errors
+      console.log('Authentication error, redirecting to login');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Locations
 export const getAllLocations = async () => {
   try {
-    const response = await api.get('/locations');
+    const response = await api.get('/locations/');
     return response.data;
   } catch (error) {
     console.error('Error fetching locations:', error);
@@ -34,7 +47,7 @@ export const getAllLocations = async () => {
 // Visits
 export const getUserVisits = async () => {
   try {
-    const response = await api.get('/visits');
+    const response = await api.get('/visits/');
     return response.data;
   } catch (error) {
     console.error('Error fetching user visits:', error);
@@ -44,7 +57,7 @@ export const getUserVisits = async () => {
 
 export const addVisit = async (visitData) => {
   try {
-    const response = await api.post('/visits', visitData);
+    const response = await api.post('/visits/', visitData);
     return response.data;
   } catch (error) {
     console.error('Error adding visit:', error);
@@ -65,7 +78,7 @@ export const deleteVisit = async (visitId) => {
 // Recommendations
 export const getRecommendations = async () => {
   try {
-    const response = await api.get('/recommendations');
+    const response = await api.get('/recommendations/');
     return response.data;
   } catch (error) {
     console.error('Error fetching recommendations:', error);

@@ -1,16 +1,14 @@
 import axios from 'axios';
 
-// Use relative URL for APIs - will work with NGINX proxy
-const API_URL = '/api';
-
 // Simple login function using direct axios
 export const loginUser = async (credentials) => {
   try {
-    const response = await axios.post(`${API_URL}/auth/login`, credentials, {
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await axios.post('/api/auth/login', credentials);
+    
+    // Store token and user data
+    localStorage.setItem('token', response.data.access_token);
+    localStorage.setItem('user', JSON.stringify(response.data.user));
+    
     return response.data;
   } catch (error) {
     console.error('Login error:', error);
@@ -18,14 +16,15 @@ export const loginUser = async (credentials) => {
   }
 };
 
-// Simple registration function using direct axios
+// Simple registration function
 export const registerUser = async (userData) => {
   try {
-    const response = await axios.post(`${API_URL}/auth/register`, userData, {
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await axios.post('/api/auth/register', userData);
+    
+    // Store token and user data
+    localStorage.setItem('token', response.data.access_token);
+    localStorage.setItem('user', JSON.stringify(response.data.user));
+    
     return response.data;
   } catch (error) {
     console.error('Registration error:', error);
@@ -33,21 +32,19 @@ export const registerUser = async (userData) => {
   }
 };
 
-// Get user profile with token from localStorage
+// Get user profile
 export const getUser = async () => {
   const token = localStorage.getItem('token');
   if (!token) return null;
   
   try {
-    const response = await axios.get(`${API_URL}/auth/profile`, {
+    const response = await axios.get('/api/auth/profile', {
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${token}`
       }
     });
     return response.data;
   } catch (error) {
-    console.error('Get user error:', error);
     if (error.response && error.response.status === 401) {
       // Token expired or invalid
       localStorage.removeItem('token');
@@ -57,13 +54,22 @@ export const getUser = async () => {
   }
 };
 
-// Simple auth check based on token presence
+// Check if user is authenticated
 export const isAuthenticated = () => {
   return !!localStorage.getItem('token');
 };
 
-// Logout by removing token and user data
+// Logout user
 export const logoutUser = () => {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
+};
+
+// Clear any existing authentication on app start
+export const clearAuthOnStart = () => {
+  // Only clear if not on login page
+  if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  }
 };
