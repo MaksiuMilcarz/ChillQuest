@@ -13,7 +13,7 @@ api.interceptors.request.use(config => {
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-    console.log('Using token in request');
+    console.log('Using token in request:', config.url);
   }
   return config;
 });
@@ -22,6 +22,7 @@ api.interceptors.request.use(config => {
 api.interceptors.response.use(
   response => response,
   error => {
+    console.error('API error:', error.response ? error.response.status : 'No response');
     if (error.response && error.response.status === 401) {
       // Redirect to login on auth errors
       console.log('Authentication error, redirecting to login');
@@ -47,7 +48,13 @@ export const getAllLocations = async () => {
 // Visits
 export const getUserVisits = async () => {
   try {
-    const response = await api.get('/visits/');
+    // Make sure the token is properly set in the request
+    const token = localStorage.getItem('token');
+    const response = await api.get('/visits/', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
     return response.data;
   } catch (error) {
     console.error('Error fetching user visits:', error);
@@ -62,8 +69,14 @@ export const addVisit = async (visitData) => {
       visitData.location_id = parseInt(visitData.location_id, 10);
     }
     
+    // Make sure the token is properly set in the request
+    const token = localStorage.getItem('token');
     console.log('Sending visit data:', JSON.stringify(visitData));
-    const response = await api.post('/visits/', visitData);
+    const response = await api.post('/visits/', visitData, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
     return response.data;
   } catch (error) {
     console.error('Error adding visit:', error);
@@ -77,7 +90,12 @@ export const addVisit = async (visitData) => {
 
 export const deleteVisit = async (visitId) => {
   try {
-    const response = await api.delete(`/visits/${visitId}`);
+    const token = localStorage.getItem('token');
+    const response = await api.delete(`/visits/${visitId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
     return response.data;
   } catch (error) {
     console.error(`Error deleting visit ${visitId}:`, error);

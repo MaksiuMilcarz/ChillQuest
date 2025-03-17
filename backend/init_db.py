@@ -14,11 +14,12 @@ with app.app_context():
     location_count = Location.query.count()
     print(f"Found {location_count} existing locations.")
     
-    if location_count == 0:
-        print("Seeding locations...")
-        seed_locations()
-        new_location_count = Location.query.count()
-        print(f"Seeded {new_location_count} locations.")
+    # ALWAYS seed new locations, regardless of whether there are existing ones
+    print("Seeding or updating locations...")
+    seed_locations()
+    
+    new_location_count = Location.query.count()
+    print(f"Updated to {new_location_count} locations.")
     
     # Check if demo user exists
     demo_user = User.query.filter_by(username='demouser').first()

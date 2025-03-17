@@ -823,15 +823,22 @@ def seed_locations():
         }
     ]
     
-    for loc_data in locations:
-        location = Location(**loc_data)
-        db.session.add(location)
+    all_locations = locations + additional_locations
     
-    db.session.commit()
+    for loc_data in all_locations:
+        # Check if this location already exists
+        existing = Location.query.filter_by(
+            name=loc_data['name'],
+            city=loc_data['city'],
+            country=loc_data['country']
+        ).first()
+        
+        if not existing:
+            # Only add if it doesn't exist
+            print(f"Adding new location: {loc_data['name']}")
+            location = Location(**loc_data)
+            db.session.add(location)
     
-    for loc_data in additional_locations:
-        location = Location(**loc_data)
-        db.session.add(location)
     db.session.commit()
     
     # After locations are added, create a demo user with visits

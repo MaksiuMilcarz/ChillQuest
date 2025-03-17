@@ -14,6 +14,14 @@ function useLeafletIcons() {
   const recommendedIconRef = useRef(null);
   
   useEffect(() => {
+    // Set a timeout to ensure we don't hang indefinitely
+    const loadTimeout = setTimeout(() => {
+      console.log("Icon loading timed out, proceeding anyway");
+      if (!iconsLoaded) {
+        setIconsLoaded(true);
+      }
+    }, 3000); // 3 second timeout
+    
     // Create the icons only once
     defaultIconRef.current = new L.Icon({
       iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
@@ -42,41 +50,26 @@ function useLeafletIcons() {
       shadowSize: [41, 41]
     });
     
-    // Function to preload all images
-    const preloadImages = () => {
-      const iconUrls = [
-        'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-        'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-        'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
-        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png'
-      ];
-      
-      // Track how many images have loaded
-      let loadedCount = 0;
-      
-      iconUrls.forEach(url => {
-        const img = new Image();
-        img.onload = () => {
-          loadedCount++;
-          if (loadedCount === iconUrls.length) {
-            console.log('All map icons loaded');
-            setIconsLoaded(true);
-          }
-        };
-        img.onerror = () => {
-          console.error(`Failed to load icon: ${url}`);
-          loadedCount++;
-          if (loadedCount === iconUrls.length) {
-            // Still set loaded to true even if there are errors
-            // to prevent the app from hanging
-            setIconsLoaded(true);
-          }
-        };
-        img.src = url;
-      });
-    };
+    // Immediately set icons as loaded since we're creating them synchronously
+    console.log("Icons created, proceeding with map rendering");
+    setIconsLoaded(true);
     
-    preloadImages();
+    // Preload images in the background (not blocking)
+    const iconUrls = [
+      'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+      'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+      'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
+      'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png'
+    ];
+    
+    iconUrls.forEach(url => {
+      const img = new Image();
+      img.src = url;
+    });
+    
+    return () => {
+      clearTimeout(loadTimeout);
+    };
   }, []);
   
   // Return the icons and loading state

@@ -34,9 +34,10 @@ const App = () => {
       shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png'
     });
     
-    // Set up auth token for API
+    // Make sure global axios default has the auth token
     const token = localStorage.getItem('token');
     if (token) {
+      console.log("Setting global auth token");
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
     

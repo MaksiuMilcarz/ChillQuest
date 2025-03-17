@@ -35,6 +35,9 @@ const Login = () => {
       localStorage.setItem('token', response.data.access_token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       
+      // Set token for all future axios requests
+      axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.access_token}`;
+
       // Redirect to dashboard
       navigate('/dashboard');
     } catch (err) {
