@@ -62,7 +62,7 @@ const getCategoryName = (type) => {
   }
 };
 
-const LocationCard = ({ location, isVisited, onVisitChange }) => {
+const LocationCard = ({ location, isVisited, onVisitChange, detailed = false }) => {
   const [rating, setRating] = useState(isVisited?.rating || 0);
   const [notes, setNotes] = useState(isVisited?.notes || '');
   const [loading, setLoading] = useState(false);
@@ -85,200 +85,70 @@ const LocationCard = ({ location, isVisited, onVisitChange }) => {
     return <div className="bg-red-100 p-4 rounded-md">Location data not available</div>;
   }
 
-  const handleVisitToggle = async () => {
-    setLoading(true);
-    setError('');
-    setSuccess('');
-    
-    try {
-      console.log('Toggle visit for location:', location.id);
-      
-      if (isVisited) {
-        // Delete visit - ensure we have an ID
-        if (!isVisited.id) {
-          throw new Error('Cannot delete visit: missing ID');
-        }
-        
-        await deleteVisit(isVisited.id);
-        setSuccess('Visit removed successfully');
-        onVisitChange && onVisitChange(null);
-      } else {
-        // Add visit - ensure location_id is a number
-        const visitData = {
-          location_id: parseInt(location.id, 10), // Ensure it's a number
-          rating: rating > 0 ? rating : undefined,
-          notes: notes.trim() || undefined
-        };
-        console.log('Adding visit with data:', visitData);
-        
-        const response = await addVisit(visitData);
-        console.log('Visit added:', response);
-        setSuccess('Location marked as visited');
-        onVisitChange && onVisitChange(response.visit);
-      }
-    } catch (err) {
-      console.error('Failed to update visit:', err);
-      setError('Failed to update visit. Please ensure you are logged in and try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRatingChange = async (newRating) => {
-    setRating(newRating);
-    
-    if (isVisited) {
-      setLoading(true);
-      setError('');
-      setSuccess('');
-      
-      try {
-        console.log('Updating rating for location:', location.id);
-        
-        const response = await addVisit({
-          location_id: location.id,
-          rating: newRating,
-          notes
-        });
-        
-        console.log('Rating updated:', response);
-        setSuccess('Rating updated');
-        onVisitChange && onVisitChange(response.visit);
-      } catch (err) {
-        console.error('Failed to update rating:', err);
-        setError('Failed to update rating');
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-
-  const handleNotesChange = async () => {
-    if (!isVisited) return;
-    
-    setLoading(true);
-    setError('');
-    setSuccess('');
-    
-    try {
-      console.log('Updating notes for location:', location.id);
-      
-      const response = await addVisit({
-        location_id: location.id,
-        rating,
-        notes
-      });
-      
-      console.log('Notes updated:', response);
-      setSuccess('Notes updated');
-      onVisitChange && onVisitChange(response.visit);
-    } catch (err) {
-      console.error('Failed to update notes:', err);
-      setError('Failed to update notes');
-    } finally {
-      setLoading(false);
+  const handleVisitToggle = () => {
+    if (onVisitChange) {
+      console.log(`Toggling visit status for ${location.name} (ID: ${location.id}) to ${!isVisited}`);
+      onVisitChange(location, !isVisited);
     }
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-4 mb-4">
-      {/* Header with name and category icon */}
-      <div className="flex justify-between items-start">
-        <div className="flex items-center">
-          <CategoryIcon type={location.type} />
-          <div className="ml-2">
-            <h3 className="text-xl font-bold">{location.name}</h3>
-            <p className="text-gray-600">{location.city}, {location.country}</p>
+    <div className="bg-white rounded-lg shadow-md overflow-hidden">
+      {/* Card Header */}
+      <div className={`p-4 ${isVisited ? 'bg-green-50' : 'bg-gray-50'}`}>
+        <h3 className="font-bold text-lg">{location.name}</h3>
+        <p className="text-gray-600">
+          {location.city}, {location.country}
+        </p>
+      </div>
+      
+      {/* Card Body */}
+      <div className="p-4">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-sm font-medium text-gray-600">Type:</span>
+          <span className="text-sm">{location.type}</span>
+        </div>
+        
+        <div className="flex justify-between items-center">
+          <span className="text-sm font-medium text-gray-600">Rating:</span>
+          <div className="flex items-center">
+            <span className="text-sm mr-1">{location.rating || 'N/A'}</span>
+            {location.rating && (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4 text-yellow-500"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                />
+              </svg>
+            )}
           </div>
         </div>
         
-        <div className="flex items-center">
-          <span className="text-yellow-500 mr-1">★</span>
-          <span>{location.rating ? location.rating.toFixed(1) : "N/A"}</span>
-        </div>
-      </div>
-      
-      {/* Category badge */}
-      <div className="mt-2">
-        <span className="inline-block bg-gray-100 rounded-full px-3 py-1 text-sm font-semibold text-gray-700">
-          {getCategoryName(location.type)}
-        </span>
-      </div>
-      
-      <p className="mt-2 text-gray-700">{location.description || 'No description available.'}</p>
-      
-      <div className="flex items-center mt-2">
-        <span className="text-gray-700 mr-2">Price Level:</span>
-        <div className="flex">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <span 
-              key={i} 
-              className={`${i < (location.price_level || 0) ? 'text-green-500' : 'text-gray-300'}`}
-            >
-              $
-            </span>
-          ))}
-        </div>
-      </div>
-      
-      {/* Visit button */}
-      <div className="mt-4">
+        {detailed && (
+          <div className="mt-4">
+            <p className="text-sm text-gray-600 mb-2">Location Type: {location.type}</p>
+            {location.description && (
+              <p className="text-sm text-gray-600">{location.description}</p>
+            )}
+          </div>
+        )}
+        
+        {/* Visit Button */}
         <button
-          className={`px-4 py-2 rounded-md w-full ${
-            isVisited 
-              ? 'bg-red-500 hover:bg-red-600 text-white' 
-              : 'bg-green-500 hover:bg-green-600 text-white'
-          }`}
           onClick={handleVisitToggle}
-          disabled={loading}
+          className={`mt-4 w-full py-2 px-4 rounded transition-colors ${
+            isVisited
+              ? 'bg-red-100 hover:bg-red-200 text-red-700'
+              : 'bg-green-100 hover:bg-green-200 text-green-700'
+          }`}
         >
-          {loading ? 'Processing...' : isVisited ? 'Remove from Visited' : 'Mark as Visited'}
+          {isVisited ? 'Remove from Visited' : 'Mark as Visited'}
         </button>
       </div>
-      
-      {error && (
-        <p className="mt-2 text-red-500 text-sm">{error}</p>
-      )}
-      
-      {success && (
-        <p className="mt-2 text-green-500 text-sm">{success}</p>
-      )}
-      
-      {/* Rating and notes for visited locations */}
-      {isVisited && (
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <div className="mb-3">
-            <label className="block text-gray-700 text-sm font-bold mb-2">
-              Your Rating:
-            </label>
-            <div className="flex">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleRatingChange(i + 1)}
-                  className={`text-2xl ${i < rating ? 'text-yellow-500' : 'text-gray-300'} focus:outline-none`}
-                >
-                  ★
-                </button>
-              ))}
-            </div>
-          </div>
-          
-          <div>
-            <label className="block text-gray-700 text-sm font-bold mb-2">
-              Notes:
-            </label>
-            <textarea
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              rows="3"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              onBlur={handleNotesChange}
-              placeholder="Add your personal notes about this place..."
-            ></textarea>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

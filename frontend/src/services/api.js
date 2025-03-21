@@ -48,13 +48,8 @@ export const getAllLocations = async () => {
 // Visits
 export const getUserVisits = async () => {
   try {
-    // Make sure the token is properly set in the request
-    const token = localStorage.getItem('token');
-    const response = await api.get('/visits/', {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
+    // Let the interceptor handle the token - don't add it twice
+    const response = await api.get('/visits/');
     return response.data;
   } catch (error) {
     console.error('Error fetching user visits:', error);
@@ -69,14 +64,15 @@ export const addVisit = async (visitData) => {
       visitData.location_id = parseInt(visitData.location_id, 10);
     }
     
-    // Make sure the token is properly set in the request
-    const token = localStorage.getItem('token');
-    console.log('Sending visit data:', JSON.stringify(visitData));
-    const response = await api.post('/visits/', visitData, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
+    // Make sure we're sending the right format
+    const payload = {
+      location_id: visitData.location_id,
+      rating: visitData.rating || null,
+      notes: visitData.notes || ''
+    };
+    
+    console.log('Sending visit data:', JSON.stringify(payload));
+    const response = await api.post('/visits/', payload);
     return response.data;
   } catch (error) {
     console.error('Error adding visit:', error);
@@ -90,12 +86,7 @@ export const addVisit = async (visitData) => {
 
 export const deleteVisit = async (visitId) => {
   try {
-    const token = localStorage.getItem('token');
-    const response = await api.delete(`/visits/${visitId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
+    const response = await api.delete(`/visits/${visitId}`);
     return response.data;
   } catch (error) {
     console.error(`Error deleting visit ${visitId}:`, error);

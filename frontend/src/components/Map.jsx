@@ -4,178 +4,106 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { getAllLocations, getRecommendations } from '../services/api';
 
-// Custom hook to handle icon loading
-function useLeafletIcons() {
-  const [iconsLoaded, setIconsLoaded] = useState(false);
-  
-  // Create refs for all custom icons
-  const defaultIconRef = useRef(null);
-  const visitedIconRef = useRef(null);
-  const recommendedIconRef = useRef(null);
-  
-  useEffect(() => {
-    // Set a timeout to ensure we don't hang indefinitely
-    const loadTimeout = setTimeout(() => {
-      console.log("Icon loading timed out, proceeding anyway");
-      if (!iconsLoaded) {
-        setIconsLoaded(true);
-      }
-    }, 3000); // 3 second timeout
-    
-    // Create the icons only once
-    defaultIconRef.current = new L.Icon({
-      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41, 41]
-    });
-    
-    visitedIconRef.current = new L.Icon({
-      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41, 41]
-    });
-    
-    recommendedIconRef.current = new L.Icon({
-      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
-      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41, 41]
-    });
-    
-    // Immediately set icons as loaded since we're creating them synchronously
-    console.log("Icons created, proceeding with map rendering");
-    setIconsLoaded(true);
-    
-    // Preload images in the background (not blocking)
-    const iconUrls = [
-      'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-      'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-      'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
-      'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png'
-    ];
-    
-    iconUrls.forEach(url => {
-      const img = new Image();
-      img.src = url;
-    });
-    
-    return () => {
-      clearTimeout(loadTimeout);
-    };
-  }, []);
-  
-  // Return the icons and loading state
-  return { 
-    defaultIcon: defaultIconRef.current, 
-    visitedIcon: visitedIconRef.current, 
-    recommendedIcon: recommendedIconRef.current,
-    iconsLoaded 
-  };
-}
+// Custom icon for visited locations
+const createCustomIcon = (iconUrl) => {
+  return new L.Icon({
+    iconUrl,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+  });
+};
 
 const Map = ({ userVisits = [], onMarkerClick }) => {
+  // State
   const [locations, setLocations] = useState([]);
-  const [recommendedLocationIds, setRecommendedLocationIds] = useState(new Set()); 
+  const [recommendedLocationIds, setRecommendedLocationIds] = useState(new Set());
+  const [visitedLocationIds, setVisitedLocationIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const { defaultIcon, visitedIcon, recommendedIcon, iconsLoaded } = useLeafletIcons();
+  const [error, setError] = useState('');
+  const [iconsLoaded, setIconsLoaded] = useState(false);
   
-  // Only fetch data and render map when icons are loaded
+  // Icons refs
+  const regularIcon = useRef(null);
+  const visitedIcon = useRef(null);
+  const recommendedIcon = useRef(null);
+  
+  // Load data when component mounts
   useEffect(() => {
-    if (iconsLoaded) {
-      const fetchData = async () => {
+    const loadData = async () => {
+      try {
         setLoading(true);
-        setError(null);
         
-        try {
-          // Use Promise.all to fetch locations and recommendations in parallel
-          const [locationsResponse, recommendationsResponse] = await Promise.all([
-            getAllLocations(),
-            getRecommendations()
-          ]);
-          
-          console.log('Locations response:', locationsResponse);
-          console.log('Recommendations response:', recommendationsResponse);
-          
-          // Process locations
-          if (locationsResponse && locationsResponse.locations) {
-            setLocations(locationsResponse.locations);
-          } else {
-            throw new Error('Invalid location data format');
-          }
-          
-          // Process recommendations
-          if (recommendationsResponse && recommendationsResponse.recommendations) {
-            // Create a set of recommended location IDs for easy lookup
-            const recIds = new Set(recommendationsResponse.recommendations.map(loc => loc.id));
-            setRecommendedLocationIds(recIds);
-            console.log('Recommended location IDs:', [...recIds]);
-          }
-        } catch (err) {
-          console.error('Failed to load map data:', err);
-          setError('Failed to load map data. Please try refreshing the page.');
-          
-          // If at least locations loaded, show them anyway
-          if (locations.length === 0) {
-            try {
-              const fallbackLocations = await getAllLocations();
-              if (fallbackLocations && fallbackLocations.locations) {
-                setLocations(fallbackLocations.locations);
-              }
-            } catch (fallbackErr) {
-              console.error('Failed to load fallback locations:', fallbackErr);
-            }
-          }
-        } finally {
-          setLoading(false);
+        // Load markers only once
+        regularIcon.current = createCustomIcon('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png');
+        visitedIcon.current = createCustomIcon('https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png');
+        recommendedIcon.current = createCustomIcon('https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png');
+        setIconsLoaded(true);
+        
+        // Fetch locations
+        const locationsResponse = await getAllLocations();
+        if (locationsResponse && locationsResponse.locations) {
+          setLocations(locationsResponse.locations);
         }
-      };
-
-      fetchData();
-    }
-  }, [iconsLoaded, userVisits]); // This ensures the map refreshes when user visits change
-
-  // Debug user visits whenever they change
+        
+        // Fetch recommendations
+        const recommendationsResponse = await getRecommendations();
+        if (recommendationsResponse && recommendationsResponse.recommendations) {
+          const recommendedIds = new Set(
+            recommendationsResponse.recommendations.map(rec => rec.id)
+          );
+          setRecommendedLocationIds(recommendedIds);
+        }
+        
+        setLoading(false);
+      } catch (err) {
+        console.error('Error loading map data:', err);
+        setError('Failed to load map data. Please try refreshing.');
+        setLoading(false);
+      }
+    };
+    
+    loadData();
+  }, []);
+  
+  // Update visited locations when userVisits changes
   useEffect(() => {
-    console.log('User visits updated:', userVisits);
-    // Print out location IDs that should be marked as visited
     if (userVisits && userVisits.length > 0) {
-      const visitedIds = userVisits.map(visit => visit.location_id);
-      console.log('Visited location IDs:', visitedIds);
+      const visitedIds = new Set(
+        userVisits
+          .filter(visit => visit.location)
+          .map(visit => visit.location.id)
+      );
+      setVisitedLocationIds(visitedIds);
+    } else {
+      setVisitedLocationIds(new Set());
     }
   }, [userVisits]);
-
-  // Create a set of location IDs that user has visited (for quick lookup)
-  const visitedLocationIds = new Set(userVisits.map(visit => visit.location_id));
-
-  // Helper function to determine which icon to use
+  
+  // Get the appropriate marker icon based on location status
   const getMarkerIcon = (locationId) => {
     if (visitedLocationIds.has(locationId)) {
-      return visitedIcon;
-    } else if (recommendedLocationIds.has(locationId)) {
-      return recommendedIcon;
+      return visitedIcon.current;
     }
-    return defaultIcon;
+    if (recommendedLocationIds.has(locationId)) {
+      return recommendedIcon.current;
+    }
+    return regularIcon.current;
   };
-
+  
   if (!iconsLoaded || loading) return <div className="h-full flex items-center justify-center">Loading map...</div>;
   if (error) return <div className="h-full flex items-center justify-center text-red-500">{error}</div>;
 
   return (
-    <div className="h-full w-full relative">
+    <div className="h-full w-full relative" style={{ zIndex: 0 }}>
       <MapContainer 
         center={[20, 0]} 
         zoom={2} 
-        style={{ height: '100%', width: '100%' }}
+        className="map-container"
+        style={{ height: 'calc(100% - 10px)', width: '100%', zIndex: 0 }}
         scrollWheelZoom={true}
+        zoomControl={true}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -210,7 +138,7 @@ const Map = ({ userVisits = [], onMarkerClick }) => {
       </MapContainer>
       
       {/* Map Legend */}
-      <div className="absolute bottom-5 left-5 bg-white p-2 rounded shadow z-[1000]">
+      <div className="absolute bottom-5 left-5 bg-white p-2 rounded shadow map-legend" style={{ zIndex: 1000 }}>
         <div className="flex items-center mb-1">
           <div className="w-4 h-4 bg-blue-500 rounded-full mr-2"></div>
           <span>Regular Location</span>

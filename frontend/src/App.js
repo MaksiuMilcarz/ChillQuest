@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { isAuthenticated, clearAuthOnStart } from './services/auth';
+import { isAuthenticated } from './services/auth';
 import axios from 'axios';
 
 // Import Leaflet CSS early to ensure proper loading
@@ -23,8 +23,7 @@ const ProtectedRoute = ({ children }) => {
 const App = () => {
   // Fix Leaflet icon issues on component mount
   useEffect(() => {
-    // Clear any existing auth data on app load - to prevent auto-login
-    clearAuthOnStart();
+    // IMPORTANT: We've removed clearAuthOnStart() which was causing authentication loss
     
     // Fix Leaflet icon issues once on load
     delete L.Icon.Default.prototype._getIconUrl;
