@@ -1,7 +1,6 @@
-from flask import Blueprint, jsonify, request, current_app
-from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
+from flask import Blueprint, jsonify, request
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import db, Visit, Location, User
-import traceback
 
 visits_bp = Blueprint('visits', __name__)
 
@@ -10,25 +9,25 @@ visits_bp = Blueprint('visits', __name__)
 def get_user_visits():
     """Get all visits for the current user with location details"""
     try:
-        # Debug token
+        # Get user ID - convert string to int if needed
+        current_user_id = get_jwt_identity()
+        print(f"Identity from token: {current_user_id}, type: {type(current_user_id)}")
+        
+        # Convert to integer if it's a string
         try:
-            verify_jwt_in_request()
-            print("JWT verification successful")
-        except Exception as jwt_err:
-            print(f"JWT verification error: {jwt_err}")
-            return jsonify({'message': 'Invalid authentication token'}), 401
-        
-        # Get user ID from token
-        user_id = get_jwt_identity()
-        print(f"JWT extracted user_id: {user_id}")
-        
+            user_id = int(current_user_id)
+        except (ValueError, TypeError):
+            user_id = current_user_id
+            
+        print(f"Fetching visits for user ID: {user_id}")
+            
         # Verify user exists
         user = User.query.get(user_id)
         if not user:
             print(f"User with ID {user_id} not found")
             return jsonify({'message': 'User not found'}), 404
         
-        print(f"Fetching visits for user ID: {user_id}, username: {user.username}")
+        print(f"User found: {user.username}")
         visits = Visit.query.filter_by(user_id=user_id).all()
         print(f"Found {len(visits)} visits")
         
@@ -51,6 +50,7 @@ def get_user_visits():
         }), 200
     except Exception as e:
         print(f"Error in get_user_visits: {str(e)}")
+        import traceback
         traceback.print_exc()
         return jsonify({'message': f'Error processing request: {str(e)}'}), 500
 
@@ -59,21 +59,21 @@ def get_user_visits():
 def add_visit():
     """Add or update a visit for the current user"""
     try:
-        # Debug the request
-        print(f"POST /visits/ request received")
-        print(f"Request headers: {request.headers}")
-        print(f"Request mimetype: {request.mimetype}")
-        print(f"Request data raw: {request.data}")
+        # Get user ID from token and convert to int if needed
+        current_user_id = get_jwt_identity()
+        try:
+            user_id = int(current_user_id)
+        except (ValueError, TypeError):
+            user_id = current_user_id
+            
+        print(f"Adding visit for user ID: {user_id}")
         
-        user_id = get_jwt_identity()
-        print(f"JWT extracted user_id for add_visit: {user_id}")
-        
-        # Get JSON data with better error handling
-        data = request.get_json(force=True, silent=True)
-        print(f"Parsed JSON data: {data}")
-        
+        # Get JSON data
+        data = request.get_json(force=True)
+        print(f"Visit data received: {data}")
+            
         if not data:
-            print("No JSON data in request")
+            print("No JSON data provided")
             return jsonify({'message': 'No JSON data provided'}), 400
             
         # Validate location_id
@@ -112,7 +112,6 @@ def add_visit():
                 existing_visit.notes = data['notes']
             
             db.session.commit()
-            print(f"Visit updated successfully")
             
             # Get the location data to include in response
             location_data = location.to_dict()
@@ -147,6 +146,7 @@ def add_visit():
         }), 201
     except Exception as e:
         print(f"Error in add_visit: {str(e)}")
+        import traceback
         traceback.print_exc()
         db.session.rollback()
         return jsonify({'message': f'Error processing request: {str(e)}'}), 500
@@ -154,26 +154,27 @@ def add_visit():
 @visits_bp.route('/<int:visit_id>', methods=['DELETE'])
 @jwt_required()
 def delete_visit(visit_id):
-    """Delete a visit"""
+    """Delete a specific visit belonging to the current user"""
     try:
-        print(f"DELETE /visits/{visit_id} request received")
-        user_id = get_jwt_identity()
-        print(f"JWT extracted user_id: {user_id}")
-        
-        # Find visit by ID and user
+        # Get user ID from token and convert to int if needed
+        current_user_id = get_jwt_identity()
+        try:
+            user_id = int(current_user_id)
+        except (ValueError, TypeError):
+            user_id = current_user_id
+            
+        print(f"Delete visit - User: {user_id}, Visit ID: {visit_id}")
         visit = Visit.query.filter_by(id=visit_id, user_id=user_id).first()
         
         if not visit:
-            print(f"Visit {visit_id} not found for user {user_id}")
-            return jsonify({'message': 'Visit not found or not owned by user'}), 404
+            return jsonify({'message': 'Visit not found or unauthorized'}), 404
         
-        print(f"Deleting visit {visit_id} for location {visit.location_id}")
         db.session.delete(visit)
         db.session.commit()
+        print(f"Deleted visit ID: {visit_id}")
         
         return jsonify({'message': 'Visit deleted'}), 200
     except Exception as e:
-        print(f"Error deleting visit: {str(e)}")
-        traceback.print_exc()
+        print(f"Error in delete_visit: {str(e)}")
         db.session.rollback()
         return jsonify({'message': f'Error processing request: {str(e)}'}), 500

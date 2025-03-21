@@ -35,8 +35,8 @@ def register():
     db.session.commit()
     print(f"User registered successfully: {user.username}, ID: {user.id}")
     
-    # Create access token
-    access_token = create_access_token(identity=user.id)
+    # Create access token - IMPORTANT: Convert user.id to string
+    access_token = create_access_token(identity=str(user.id))
     
     return jsonify({
         'message': 'User registered successfully',
@@ -76,8 +76,8 @@ def login():
     if not user or not user.check_password(data['password']):
         return jsonify({'message': 'Invalid credentials'}), 401
     
-    # Create access token
-    access_token = create_access_token(identity=user.id)
+    # Create access token - IMPORTANT: Convert user.id to string
+    access_token = create_access_token(identity=str(user.id))
     print(f"Login successful, token created for user: {user.username}")
     
     response = {
@@ -96,8 +96,14 @@ def login():
 @auth_bp.route('/profile', methods=['GET'])
 @jwt_required()
 def get_profile():
+    # Get identity as string and convert to int if needed
     current_user_id = get_jwt_identity()
-    user = User.query.get(current_user_id)
+    try:
+        user_id = int(current_user_id)
+    except (ValueError, TypeError):
+        user_id = current_user_id
+        
+    user = User.query.get(user_id)
     
     if not user:
         return jsonify({'message': 'User not found'}), 404
@@ -108,3 +114,12 @@ def get_profile():
         'email': user.email,
         'created_at': user.created_at.isoformat()
     }), 200
+
+@auth_bp.route('/verify', methods=['GET'])
+def verify_auth():
+    auth_header = request.headers.get('Authorization', 'None')
+    return jsonify({
+        "message": "Auth headers received",
+        "auth_header": auth_header,
+        "all_headers": dict(request.headers)
+    })

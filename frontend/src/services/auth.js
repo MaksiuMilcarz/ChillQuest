@@ -28,6 +28,9 @@ export const registerUser = async (userData) => {
     localStorage.setItem('token', response.data.access_token);
     localStorage.setItem('user', JSON.stringify(response.data.user));
     
+    // Set token for all future axios requests
+    axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.access_token}`;
+    
     return response.data;
   } catch (error) {
     console.error('Registration error:', error);
@@ -66,11 +69,12 @@ export const isAuthenticated = () => {
 export const logoutUser = () => {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
+  
+  // Also remove from axios defaults
+  delete axios.defaults.headers.common['Authorization'];
 };
 
-// Modified to preserve authentication - IMPORTANT FIX
+// Important! Don't clear auth on app start
 export const clearAuthOnStart = () => {
-  // Don't clear authentication on dashboard or other protected pages
-  // This was causing the authentication token to be removed
-  console.log("Preserving authentication state");
+  console.log("Authentication preserved");
 };

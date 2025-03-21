@@ -26,23 +26,37 @@ const Login = () => {
     try {
       console.log('Login attempt with:', formData.username);
       
-      // Direct API call with simpler approach
+      // Direct API call to login
       const response = await axios.post('/api/auth/login', formData);
       
       console.log('Login successful:', response.data);
       
-      // Store token and user info
+      // Store token and user info in localStorage
       localStorage.setItem('token', response.data.access_token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       
-      // Set token for all future axios requests
+      // Set token for all future axios requests (important!)
       axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.access_token}`;
+      
+      // Test the token by making a simple API call
+      try {
+        await axios.get('/api/auth/verify');
+        console.log('Token verified successfully');
+      } catch (verifyErr) {
+        console.warn('Token verification failed:', verifyErr);
+        // Continue anyway, as this is just for debugging
+      }
 
       // Redirect to dashboard
       navigate('/dashboard');
     } catch (err) {
       console.error('Login error:', err);
       setError('Login failed. Please check your credentials and try again.');
+      
+      // Handle specific error messages from the server
+      if (err.response && err.response.data && err.response.data.message) {
+        setError(`Login failed: ${err.response.data.message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -106,6 +120,9 @@ const Login = () => {
               <Link to="/register" className="text-blue-500 hover:text-blue-700">
                 Register
               </Link>
+            </p>
+            <p className="mt-2 text-sm text-gray-500">
+              Demo credentials: demouser / password123
             </p>
           </div>
         </form>

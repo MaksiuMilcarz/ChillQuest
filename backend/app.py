@@ -1,17 +1,6 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager
-from flask_migrate import Migrate
-from models import db, User, Location, Visit
-from config import Config
-from auth.routes import auth_bp
-from api.locations import locations_bp
-from api.visits import visits_bp
-from api.recommendations import recommendations_bp
-
-from flask import Flask, jsonify, request
-from flask_cors import CORS
-from flask_jwt_extended import JWTManager
+from flask_jwt_extended import JWTManager, get_jwt_identity
 from flask_migrate import Migrate
 from models import db, User, Location, Visit
 from config import Config
@@ -27,10 +16,53 @@ def create_app(config_class=Config):
     # Initialize extensions
     db.init_app(app)
     migrate = Migrate(app, db)
+    
+    # Configure JWT
     jwt = JWTManager(app)
     
-    # Configure CORS - simpler configuration
-    CORS(app)
+    # Modify JWT error handlers for better debugging
+    @jwt.invalid_token_loader
+    def invalid_token_callback(error):
+        print(f"Invalid token error: {error}")
+        return jsonify({
+            'message': 'Invalid token',
+            'error': str(error)
+        }), 401
+    
+    @jwt.unauthorized_loader
+    def unauthorized_callback(error):
+        print(f"No auth token provided: {error}")
+        return jsonify({
+            'message': 'No auth token provided',
+            'error': str(error)
+        }), 401
+    
+    @jwt.expired_token_loader
+    def expired_token_callback(jwt_header, jwt_payload):
+        print(f"Token expired: {jwt_payload}")
+        return jsonify({
+            'message': 'Token has expired',
+            'error': 'token_expired'
+        }), 401
+    
+    # Configure CORS with more permissive settings
+    CORS(app, resources={
+        r"/*": {
+            "origins": "*",
+            "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+        }
+    })
+    
+    # Add a test endpoint to verify JWT is working correctly
+    @app.route('/api/auth/verify', methods=['GET'])
+    def verify_auth():
+        auth_header = request.headers.get('Authorization', 'None')
+        return jsonify({
+            "message": "Auth headers received",
+            "auth_header": auth_header,
+            "all_headers": dict(request.headers)
+        })
     
     # Add a test endpoint for debugging
     @app.route('/api/test', methods=['GET'])
@@ -47,7 +79,6 @@ def create_app(config_class=Config):
     app.register_blueprint(locations_bp, url_prefix='/api/locations')
     app.register_blueprint(visits_bp, url_prefix='/api/visits')
     app.register_blueprint(recommendations_bp, url_prefix='/api/recommendations')
-    
     # Add a health check endpoint
     @app.route('/api/health')
     def health_check():
@@ -61,7 +92,12 @@ def create_app(config_class=Config):
                 "database_path": app.config['SQLALCHEMY_DATABASE_URI'],
                 "users_count": users_count,
                 "locations_count": locations_count,
-                "visits_count": visits_count
+                "visits_count": visits_count,
+                "jwt_config": {
+                    "token_location": app.config['JWT_TOKEN_LOCATION'],
+                    "header_name": app.config['JWT_HEADER_NAME'],
+                    "header_type": app.config['JWT_HEADER_TYPE'],
+                }
             })
         except Exception as e:
             return jsonify({

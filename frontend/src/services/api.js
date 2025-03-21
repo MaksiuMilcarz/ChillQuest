@@ -12,8 +12,9 @@ const api = axios.create({
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('token');
   if (token) {
+    // Make sure to format the header correctly
     config.headers.Authorization = `Bearer ${token}`;
-    console.log('Using token in request:', config.url);
+    console.log('Adding auth token to request');
   }
   return config;
 });
@@ -23,6 +24,8 @@ api.interceptors.response.use(
   response => response,
   error => {
     console.error('API error:', error.response ? error.response.status : 'No response');
+    console.error('Error details:', error.response ? error.response.data : error.message);
+    
     if (error.response && error.response.status === 401) {
       // Redirect to login on auth errors
       console.log('Authentication error, redirecting to login');
@@ -48,7 +51,7 @@ export const getAllLocations = async () => {
 // Visits
 export const getUserVisits = async () => {
   try {
-    // Let the interceptor handle the token - don't add it twice
+    // Let the interceptor handle the token
     const response = await api.get('/visits/');
     return response.data;
   } catch (error) {
@@ -57,18 +60,13 @@ export const getUserVisits = async () => {
   }
 };
 
-export const addVisit = async (visitData) => {
+export const addVisit = async (locationId, rating = null, notes = '') => {
   try {
-    // Ensure location_id is a number
-    if (visitData.location_id) {
-      visitData.location_id = parseInt(visitData.location_id, 10);
-    }
-    
-    // Make sure we're sending the right format
+    // Ensure we're passing exactly what the backend expects
     const payload = {
-      location_id: visitData.location_id,
-      rating: visitData.rating || null,
-      notes: visitData.notes || ''
+      location_id: parseInt(locationId, 10),
+      rating: rating,
+      notes: notes || ''
     };
     
     console.log('Sending visit data:', JSON.stringify(payload));
@@ -111,6 +109,18 @@ export const getPersonalizedRecommendations = async (usePersonalization = true) 
     return response.data;
   } catch (error) {
     console.error('Error fetching personalized recommendations:', error);
+    throw error;
+  }
+};
+
+// Verify token is working
+export const verifyAuth = async () => {
+  try {
+    const response = await api.get('/auth/verify');
+    console.log('Auth verification response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Auth verification failed:', error);
     throw error;
   }
 };

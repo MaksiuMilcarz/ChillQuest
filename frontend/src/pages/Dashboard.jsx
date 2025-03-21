@@ -4,142 +4,166 @@ import Map from '../components/Map';
 import LocationCard from '../components/LocationCard';
 import RecommendationList from '../components/RecommendationList';
 import Navbar from '../components/Navbar';
-import { getUserVisits, addVisit, deleteVisit } from '../services/api';
+import { getUserVisits, getAllLocations, getRecommendations, addVisit, deleteVisit, verifyAuth } from '../services/api';
 import { isAuthenticated } from '../services/auth';
+import axios from 'axios';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   
-  // Authentication state
-  const [authenticated, setAuthenticated] = useState(isAuthenticated());
-  
-  // Content state
+  // State
   const [userVisits, setUserVisits] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(null);
-  const [activeTab, setActiveTab] = useState('map');
-  const [loading, setLoading] = useState(false);
+  const [locations, setLocations] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [visitSuccess, setVisitSuccess] = useState('');
-
-  // Load user visits when component mounts
+  const [activeTab, setActiveTab] = useState('map');
+  const [visitedLocationIds, setVisitedLocationIds] = useState(new Set());
+  
+  // Authentication verification
   useEffect(() => {
-    // Check if user is authenticated
-    if (!authenticated) {
-      console.log('User not authenticated, redirecting to login');
-      navigate('/login');
-      return;
-    }
-
-    // Fetch user visits
-    const fetchUserVisits = async () => {
+    const checkAuth = async () => {
+      if (!isAuthenticated()) {
+        console.log('User not authenticated, redirecting to login');
+        navigate('/login');
+        return;
+      }
+      
+      // Attempt to verify auth with backend
+      try {
+        console.log('Verifying authentication...');
+        // Log current token
+        const token = localStorage.getItem('token');
+        console.log('Current token:', token?.substring(0, 20) + '...');
+        
+        // Manually set axios auth header for debugging
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        
+        // Try to verify auth
+        await verifyAuth();
+        console.log('Authentication verified successfully');
+      } catch (err) {
+        console.error('Auth verification failed:', err);
+        setError('Authentication failed. Please log in again.');
+        navigate('/login');
+      }
+    };
+    
+    checkAuth();
+  }, [navigate]);
+  
+  // Load initial data
+  useEffect(() => {
+    const loadData = async () => {
       setLoading(true);
       setError('');
       
       try {
-        console.log('Fetching user visits...');
-        const response = await getUserVisits();
-        console.log('Visits response:', response);
+        console.log('Loading dashboard data...');
         
-        if (response && response.visits) {
+        // Load data in parallel
+        const [locationsData, recommendationsData, visitsData] = await Promise.all([
+          getAllLocations(),
+          getRecommendations(),
+          getUserVisits().catch(err => {
+            console.error('Failed to load visits:', err);
+            return { visits: [] };
+          })
+        ]);
+        
+        console.log('Loaded locations:', locationsData?.locations?.length || 0);
+        console.log('Loaded recommendations:', recommendationsData?.recommendations?.length || 0);
+        console.log('Loaded visits:', visitsData?.visits?.length || 0);
+        
+        // Update state
+        if (locationsData?.locations) {
+          setLocations(locationsData.locations);
+        }
+        
+        if (recommendationsData?.recommendations) {
+          setRecommendations(recommendationsData.recommendations);
+        }
+        
+        if (visitsData?.visits) {
           // Filter out visits without location data
-          const validVisits = response.visits.filter(visit => visit.location);
+          const validVisits = visitsData.visits.filter(visit => visit.location);
           setUserVisits(validVisits);
           
-          if (validVisits.length < response.visits.length) {
-            console.warn(`Found ${response.visits.length - validVisits.length} visits with missing location data`);
-          }
-        } else {
-          console.warn('No visits found in response:', response);
-          setUserVisits([]);
+          // Create a set of visited location IDs for quick lookup
+          const visitedIds = new Set();
+          validVisits.forEach(visit => {
+            if (visit.location) {
+              visitedIds.add(visit.location.id);
+            }
+          });
+          setVisitedLocationIds(visitedIds);
         }
       } catch (err) {
-        console.error('Failed to load user visits:', err);
-        
-        // Improved error handling with detailed information
-        if (err.response) {
-          console.error('Error response:', err.response.status, err.response.data);
-          
-          if (err.response.status === 422) {
-            setError('Failed to load your visited locations. There was a validation error.');
-          } else if (err.response.status === 401) {
-            setError('Your session has expired. Please log in again.');
-            navigate('/login');
-          } else {
-            setError(`Failed to load your visited locations. Server error: ${err.response.data.message || 'Unknown error'}`);
-          }
-        } else {
-          setError('Failed to load your visited locations. Please try refreshing the page.');
-        }
+        console.error('Failed to load dashboard data:', err);
+        setError('Failed to load dashboard data. Please try refreshing the page.');
       } finally {
         setLoading(false);
       }
     };
-
-    fetchUserVisits();
-  }, [authenticated, navigate]);
-
+    
+    loadData();
+  }, []);
+  
   // Handle marker click on map
   const handleMarkerClick = (location) => {
-    console.log('Location selected:', location);
     setSelectedLocation(location);
   };
-
-  // Handle visit change (add/remove)
-  const handleVisitChange = async (location, isVisited) => {
+  
+  // Handle visit toggle (add/remove)
+  const handleVisitChange = async (location, isNowVisited) => {
     try {
-      setError('');
-      setVisitSuccess('');
-      
-      if (isVisited) {
-        // Add location to visited
-        console.log(`Adding visit to ${location.name}`);
-        const visitData = {
-          location_id: location.id,
-          rating: null,
-          notes: ''
-        };
-        
-        const response = await addVisit(visitData);
+      if (isNowVisited) {
+        // Add visit
+        console.log(`Adding visit for location ${location.id}`);
+        const response = await addVisit(location.id);
         console.log('Visit added:', response);
         
         if (response && response.visit) {
-          // Add the new visit to the state
+          // Add to state
           setUserVisits(prev => [...prev, response.visit]);
-          setVisitSuccess(`Added ${location.name} to your visited places!`);
-          
-          // Automatically clear success message after 3 seconds
-          setTimeout(() => setVisitSuccess(''), 3000);
+          setVisitedLocationIds(prev => new Set([...prev, location.id]));
         }
       } else {
-        // Remove location from visited
-        console.log(`Removing visit to ${location.name}`);
+        // Find the visit to remove
         const visit = userVisits.find(v => v.location && v.location.id === location.id);
         
         if (visit) {
+          // Remove visit
+          console.log(`Removing visit ${visit.id} for location ${location.id}`);
           await deleteVisit(visit.id);
-          console.log('Visit deleted');
           
-          // Remove the visit from state
+          // Update state
           setUserVisits(prev => prev.filter(v => v.id !== visit.id));
-          setVisitSuccess(`Removed ${location.name} from your visited places!`);
-          
-          // Automatically clear success message after 3 seconds
-          setTimeout(() => setVisitSuccess(''), 3000);
-        } else {
-          console.error(`Couldn't find visit for location ${location.id}`);
-          setError(`Could not find this location in your visits.`);
+          setVisitedLocationIds(prev => {
+            const newSet = new Set([...prev]);
+            newSet.delete(location.id);
+            return newSet;
+          });
         }
       }
     } catch (err) {
-      console.error('Error updating visit:', err);
-      setError(err.message || 'Failed to update your visited locations.');
+      console.error('Failed to update visit:', err);
+      setError(`Failed to ${isNowVisited ? 'add' : 'remove'} visit: ${err.message}`);
     }
   };
-
-  // Check if a location is already visited
-  const isLocationVisited = (locationId) => {
-    return userVisits.some(visit => visit.location && visit.location.id === locationId);
-  };
+  
+  // Handle showing error/loading states
+  if (loading) {
+    return (
+      <div className="flex flex-col h-screen">
+        <Navbar />
+        <div className="flex-grow flex items-center justify-center">
+          <div className="text-xl">Loading your travel data...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen">
@@ -154,12 +178,6 @@ const Dashboard = () => {
           >
             Refresh Page
           </button>
-        </div>
-      )}
-      
-      {visitSuccess && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 m-4 rounded">
-          <p>{visitSuccess}</p>
         </div>
       )}
       
@@ -232,10 +250,19 @@ const Dashboard = () => {
               />
             ) : (
               <div className="h-full overflow-y-auto">
-                <RecommendationList 
-                  userVisits={userVisits}
-                  onVisitChange={handleVisitChange}
-                />
+                <div className="p-4">
+                  <h2 className="text-2xl font-bold mb-4">Recommended Destinations</h2>
+                  <div className="space-y-4">
+                    {recommendations.slice(0, 5).map(location => (
+                      <LocationCard
+                        key={location.id}
+                        location={location}
+                        isVisited={visitedLocationIds.has(location.id)}
+                        onVisitChange={handleVisitChange}
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -248,7 +275,7 @@ const Dashboard = () => {
               <h2 className="text-xl font-bold mb-4">Location Details</h2>
               <LocationCard 
                 location={selectedLocation} 
-                isVisited={isLocationVisited(selectedLocation.id)}
+                isVisited={visitedLocationIds.has(selectedLocation.id)}
                 onVisitChange={handleVisitChange}
                 detailed={true}
               />
@@ -256,9 +283,7 @@ const Dashboard = () => {
           ) : (
             <div>
               <h2 className="text-xl font-bold mb-4">My Visited Places</h2>
-              {loading ? (
-                <p>Loading your visits...</p>
-              ) : userVisits.length > 0 ? (
+              {userVisits.length > 0 ? (
                 <div className="space-y-4">
                   {userVisits.map(visit => visit.location && (
                     <LocationCard 

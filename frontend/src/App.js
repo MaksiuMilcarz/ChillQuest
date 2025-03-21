@@ -21,11 +21,9 @@ const ProtectedRoute = ({ children }) => {
 };
 
 const App = () => {
-  // Fix Leaflet icon issues on component mount
+  // Initialize application state
   useEffect(() => {
-    // IMPORTANT: We've removed clearAuthOnStart() which was causing authentication loss
-    
-    // Fix Leaflet icon issues once on load
+    // Fix Leaflet icon issues
     delete L.Icon.Default.prototype._getIconUrl;
     L.Icon.Default.mergeOptions({
       iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
@@ -33,7 +31,7 @@ const App = () => {
       shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png'
     });
     
-    // Make sure global axios default has the auth token
+    // Set up global axios auth header from localStorage
     const token = localStorage.getItem('token');
     if (token) {
       console.log("Setting global auth token");
@@ -59,7 +57,7 @@ const App = () => {
             </ProtectedRoute>
           } 
         />
-        <Route path="/" element={<Navigate to="/login" />} />
+        <Route path="/" element={<Navigate to="/dashboard" />} />
       </Routes>
     </Router>
   );

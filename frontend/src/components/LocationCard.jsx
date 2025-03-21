@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { addVisit, deleteVisit } from '../services/api';
+import React, { useState } from 'react';
+import { addVisit } from '../services/api';
 
 // Category icon mapping
 const CategoryIcon = ({ type }) => {
@@ -63,91 +63,119 @@ const getCategoryName = (type) => {
 };
 
 const LocationCard = ({ location, isVisited, onVisitChange, detailed = false }) => {
-  const [rating, setRating] = useState(isVisited?.rating || 0);
-  const [notes, setNotes] = useState(isVisited?.notes || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Update local state when props change
-  useEffect(() => {
-    if (isVisited) {
-      setRating(isVisited.rating || 0);
-      setNotes(isVisited.notes || '');
-    } else {
-      setRating(0);
-      setNotes('');
+  const handleVisitToggle = async () => {
+    if (!location || !location.id) {
+      setError('Invalid location data');
+      return;
     }
-  }, [isVisited]);
+    
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    
+    try {
+      if (isVisited) {
+        // The parent component handles removal
+        if (onVisitChange) {
+          onVisitChange(location, false);
+        }
+      } else {
+        // Add a visit with direct API call for simplicity
+        console.log(`Adding visit for location ${location.id}`);
+        await addVisit(location.id);
+        setSuccess('Location marked as visited!');
+        
+        // Notify parent component
+        if (onVisitChange) {
+          onVisitChange(location, true);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to update visit:', err);
+      setError('Failed to update. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Ensure location object exists
   if (!location) {
     return <div className="bg-red-100 p-4 rounded-md">Location data not available</div>;
   }
 
-  const handleVisitToggle = () => {
-    if (onVisitChange) {
-      console.log(`Toggling visit status for ${location.name} (ID: ${location.id}) to ${!isVisited}`);
-      onVisitChange(location, !isVisited);
-    }
-  };
-
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
+    <div className="bg-white rounded-lg shadow-md overflow-hidden mb-4">
       {/* Card Header */}
       <div className={`p-4 ${isVisited ? 'bg-green-50' : 'bg-gray-50'}`}>
-        <h3 className="font-bold text-lg">{location.name}</h3>
-        <p className="text-gray-600">
-          {location.city}, {location.country}
-        </p>
+        <div className="flex justify-between items-start">
+          <div className="flex items-center">
+            <CategoryIcon type={location.type} />
+            <div className="ml-2">
+              <h3 className="text-xl font-bold">{location.name}</h3>
+              <p className="text-gray-600">{location.city}, {location.country}</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center">
+            <span className="text-yellow-500 mr-1">★</span>
+            <span>{location.rating ? location.rating.toFixed(1) : "N/A"}</span>
+          </div>
+        </div>
       </div>
       
       {/* Card Body */}
       <div className="p-4">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-sm font-medium text-gray-600">Type:</span>
-          <span className="text-sm">{location.type}</span>
+        {/* Category badge */}
+        <div className="mt-2 mb-2">
+          <span className="inline-block bg-gray-100 rounded-full px-3 py-1 text-sm font-semibold text-gray-700">
+            {getCategoryName(location.type)}
+          </span>
         </div>
         
-        <div className="flex justify-between items-center">
-          <span className="text-sm font-medium text-gray-600">Rating:</span>
-          <div className="flex items-center">
-            <span className="text-sm mr-1">{location.rating || 'N/A'}</span>
-            {location.rating && (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-4 w-4 text-yellow-500"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                />
-              </svg>
-            )}
-          </div>
-        </div>
-        
-        {detailed && (
-          <div className="mt-4">
-            <p className="text-sm text-gray-600 mb-2">Location Type: {location.type}</p>
-            {location.description && (
-              <p className="text-sm text-gray-600">{location.description}</p>
-            )}
-          </div>
+        {/* Description */}
+        {detailed && location.description && (
+          <p className="mt-2 mb-4 text-gray-700">{location.description}</p>
         )}
         
-        {/* Visit Button */}
+        {/* Price level */}
+        <div className="flex items-center mt-2 mb-4">
+          <span className="text-gray-700 mr-2">Price Level:</span>
+          <div className="flex">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <span 
+                key={i} 
+                className={`${i < (location.price_level || 0) ? 'text-green-500' : 'text-gray-300'}`}
+              >
+                $
+              </span>
+            ))}
+          </div>
+        </div>
+        
+        {/* Visit button */}
         <button
-          onClick={handleVisitToggle}
-          className={`mt-4 w-full py-2 px-4 rounded transition-colors ${
+          className={`w-full py-2 px-4 rounded transition-colors ${
             isVisited
-              ? 'bg-red-100 hover:bg-red-200 text-red-700'
-              : 'bg-green-100 hover:bg-green-200 text-green-700'
+              ? 'bg-red-500 hover:bg-red-600 text-white'
+              : 'bg-green-500 hover:bg-green-600 text-white'
           }`}
+          onClick={handleVisitToggle}
+          disabled={loading}
         >
-          {isVisited ? 'Remove from Visited' : 'Mark as Visited'}
+          {loading ? 'Processing...' : isVisited ? 'Remove from Visited' : 'Mark as Visited'}
         </button>
+        
+        {error && (
+          <p className="mt-2 text-red-500 text-sm">{error}</p>
+        )}
+        
+        {success && (
+          <p className="mt-2 text-green-500 text-sm">{success}</p>
+        )}
       </div>
     </div>
   );
