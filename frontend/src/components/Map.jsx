@@ -3,14 +3,15 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-// Custom icon for visited locations
+// Custom icon for different location types
 const createCustomIcon = (iconUrl) => {
   return new L.Icon({
     iconUrl,
     iconSize: [25, 41],
     iconAnchor: [12, 41],
     popupAnchor: [1, -34],
-    shadowSize: [41, 41]
+    shadowSize: [41, 41],
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
   });
 };
 
@@ -20,9 +21,9 @@ const Map = ({ userVisits = [], locations = [], recommendations = [], onMarkerCl
   const [recommendedLocationIds, setRecommendedLocationIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [iconsLoaded, setIconsLoaded] = useState(false);
+  const [mappableLocations, setMappableLocations] = useState([]);
   
-  // Icons refs
+  // Icons for different location types
   const regularIcon = useRef(null);
   const visitedIcon = useRef(null);
   const recommendedIcon = useRef(null);
@@ -33,30 +34,32 @@ const Map = ({ userVisits = [], locations = [], recommendations = [], onMarkerCl
       regularIcon.current = createCustomIcon('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png');
       visitedIcon.current = createCustomIcon('https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png');
       recommendedIcon.current = createCustomIcon('https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png');
-      setIconsLoaded(true);
+      setLoading(false);
     } catch (err) {
       console.error('Error initializing map icons:', err);
       setError('Failed to initialize map icons.');
+      setLoading(false);
     }
   }, []);
   
   // Update visited locations when userVisits changes
   useEffect(() => {
     if (userVisits && userVisits.length > 0) {
-      const visitedIds = new Set(
-        userVisits
-          .filter(visit => visit.location)
-          .map(visit => visit.location.id)
-      );
+      const visitedIds = new Set();
+      userVisits.forEach(visit => {
+        if (visit.location && visit.location.id) {
+          visitedIds.add(visit.location.id);
+        } else if (visit.location_id) {
+          visitedIds.add(visit.location_id);
+        }
+      });
       setVisitedLocationIds(visitedIds);
-      setLoading(false);
     } else {
       setVisitedLocationIds(new Set());
-      setLoading(false);
     }
   }, [userVisits]);
   
-  // Update recommended locations when recommendations changes
+  // Update recommended locations
   useEffect(() => {
     if (recommendations && recommendations.length > 0) {
       const recommendedIds = new Set(recommendations.map(rec => rec.id));
@@ -65,6 +68,19 @@ const Map = ({ userVisits = [], locations = [], recommendations = [], onMarkerCl
       setRecommendedLocationIds(new Set());
     }
   }, [recommendations]);
+  
+  // Update mappable locations
+  useEffect(() => {
+    if (locations && locations.length > 0) {
+      // Filter out any locations without proper coordinates
+      const validLocations = locations.filter(
+        loc => loc && typeof loc.latitude === 'number' && typeof loc.longitude === 'number'
+      );
+      setMappableLocations(validLocations);
+    } else {
+      setMappableLocations([]);
+    }
+  }, [locations]);
   
   // Get the appropriate marker icon based on location status
   const getMarkerIcon = (locationId) => {
@@ -77,9 +93,9 @@ const Map = ({ userVisits = [], locations = [], recommendations = [], onMarkerCl
     return regularIcon.current;
   };
   
-  if (!iconsLoaded || loading) return <div className="h-full flex items-center justify-center">Loading map...</div>;
+  if (loading) return <div className="h-full flex items-center justify-center">Loading map...</div>;
   if (error) return <div className="h-full flex items-center justify-center text-red-500">{error}</div>;
-
+  
   return (
     <div className="h-full w-full relative" style={{ zIndex: 0 }}>
       <MapContainer 
@@ -95,7 +111,7 @@ const Map = ({ userVisits = [], locations = [], recommendations = [], onMarkerCl
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         
-        {locations && locations.map(location => (
+        {mappableLocations.map(location => (
           <Marker 
             key={location.id} 
             position={[location.latitude, location.longitude]}

@@ -300,6 +300,8 @@ const Dashboard = () => {
               <Map 
                 userVisits={userVisits} 
                 onMarkerClick={handleMarkerClick}
+                locations={locations}
+                recommendations={recommendations}
               />
             ) : (
               <div className="h-full overflow-y-auto">
@@ -395,7 +397,8 @@ const Dashboard = () => {
                   <h3 className="font-bold text-lg mb-2">Recent Visits</h3>
                   <ul className="divide-y divide-gray-200">
                     {userVisits
-                      .slice(0, 3) // Only show 3 most recent visits
+                      .sort((a, b) => new Date(b.visit_date) - new Date(a.visit_date)) // Sort by most recent first
+                      .slice(0, 5) // Show 5 most recent visits
                       .map(visit => visit.location && (
                         <li key={visit.id} className="py-2">
                           <div className="flex justify-between">
@@ -406,6 +409,7 @@ const Dashboard = () => {
                             </div>
                           </div>
                           <p className="text-sm text-gray-600">{visit.location.city}, {visit.location.country}</p>
+                          <p className="text-xs text-gray-500">Visited: {new Date(visit.visit_date).toLocaleDateString()}</p>
                         </li>
                       ))}
                   </ul>
