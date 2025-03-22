@@ -23,6 +23,24 @@ const ProtectedRoute = ({ children }) => {
 const App = () => {
   // Initialize application state
   useEffect(() => {
+    // Add app version check
+    const APP_VERSION = '1.0.1'; // Increment this whenever you deploy changes
+    const storedVersion = localStorage.getItem('appVersion');
+    
+    if (storedVersion !== APP_VERSION) {
+      // Clear cache and refresh if version doesn't match
+      localStorage.setItem('appVersion', APP_VERSION);
+      
+      // Keep authentication data
+      const token = localStorage.getItem('token');
+      const user = localStorage.getItem('user');
+      
+      if (token && user) {
+        // Only force refresh if the user is actually logged in
+        window.location.reload(true); // Force reload from server, not from cache
+      }
+    }
+
     // Fix Leaflet icon issues
     delete L.Icon.Default.prototype._getIconUrl;
     L.Icon.Default.mergeOptions({
