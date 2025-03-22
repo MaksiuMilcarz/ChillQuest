@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Map from '../components/Map';
 import LocationCard from '../components/LocationCard';
-import RecommendationList from '../components/RecommendationList';
 import Navbar from '../components/Navbar';
-import { getUserVisits, getAllLocations, getRecommendations, addVisit, deleteVisit } from '../services/api';
+import { getUserVisits, getAllLocations, addVisit, deleteVisit } from '../services/api';
 import { isAuthenticated } from '../services/auth';
 
 const Dashboard = () => {
@@ -21,6 +20,25 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('map');
   const [visitedLocationIds, setVisitedLocationIds] = useState(new Set());
   
+  // Function to update recommendations - separated as requested
+  const updateRecommendations = useCallback((allLocations, visitedIds) => {
+    if (!allLocations || allLocations.length === 0) return [];
+    
+    // Filter out visited locations
+    const unvisitedLocations = allLocations.filter(
+      location => !visitedIds.has(location.id)
+    );
+    
+    // Randomize selection from unvisited locations
+    let shuffled = [...unvisitedLocations].sort(() => 0.5 - Math.random());
+    
+    // Select up to 10 random locations for recommendations
+    const randomRecommendations = shuffled.slice(0, 10);
+    
+    console.log(`Generated ${randomRecommendations.length} new recommendations`);
+    return randomRecommendations;
+  }, []);
+  
   // Load data when component mounts
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -33,31 +51,30 @@ const Dashboard = () => {
       setError('');
       
       try {
-        // Load data in parallel
-        const [locationsData, recommendationsData, visitsData] = await Promise.all([
+        // Load data in parallel for better performance
+        const [locationsData, visitsData] = await Promise.all([
           getAllLocations(),
-          getRecommendations(),
           getUserVisits().catch(err => {
             console.error('Failed to load visits:', err);
             return { visits: [] };
           })
         ]);
         
-        // Update state
+        // Update locations state
+        let allLocations = [];
         if (locationsData?.locations) {
-          setLocations(locationsData.locations);
+          allLocations = locationsData.locations;
+          setLocations(allLocations);
         }
         
-        if (recommendationsData?.recommendations) {
-          setRecommendations(recommendationsData.recommendations);
-        }
-        
+        // Process visits
+        let visitedIds = new Set();
         if (visitsData?.visits) {
           const validVisits = visitsData.visits.filter(visit => visit.location);
           setUserVisits(validVisits);
           
           // Create a set of visited location IDs for quick lookup
-          const visitedIds = new Set();
+          visitedIds = new Set();
           validVisits.forEach(visit => {
             if (visit.location) {
               visitedIds.add(visit.location.id);
@@ -65,6 +82,10 @@ const Dashboard = () => {
           });
           setVisitedLocationIds(visitedIds);
         }
+        
+        // Generate initial recommendations
+        const newRecommendations = updateRecommendations(allLocations, visitedIds);
+        setRecommendations(newRecommendations);
       } catch (err) {
         console.error('Failed to load dashboard data:', err);
         setError('Failed to load dashboard data. Please try refreshing the page.');
@@ -74,11 +95,16 @@ const Dashboard = () => {
     };
     
     loadData();
-  }, [navigate]);
+  }, [navigate, updateRecommendations]);
   
   // Handle marker click on map
   const handleMarkerClick = (location) => {
     setSelectedLocation(location);
+  };
+  
+  // Return to overview
+  const handleReturnToOverview = () => {
+    setSelectedLocation(null);
   };
   
   // Handle visit toggle (add/remove)
@@ -97,11 +123,23 @@ const Dashboard = () => {
         if (response && response.visit) {
           // Add to state
           setUserVisits(prev => [...prev, response.visit]);
-          setVisitedLocationIds(prev => new Set([...prev, location.id]));
+          
+          // Update visited IDs
+          setVisitedLocationIds(prev => {
+            const newSet = new Set([...prev]);
+            newSet.add(location.id);
+            return newSet;
+          });
+          
           setSuccess(`Added ${location.name} to your visited places!`);
           
           // Clear success message after 3 seconds
           setTimeout(() => setSuccess(''), 3000);
+          
+          // Update recommendations after adding visit
+          setRecommendations(prev => 
+            updateRecommendations(locations, new Set([...visitedLocationIds, location.id]))
+          );
         }
       } else {
         // Find the visit to remove
@@ -113,11 +151,14 @@ const Dashboard = () => {
           
           // Update state
           setUserVisits(prev => prev.filter(v => v.id !== visit.id));
+          
+          // Update visited IDs
           setVisitedLocationIds(prev => {
             const newSet = new Set([...prev]);
             newSet.delete(location.id);
             return newSet;
           });
+          
           setSuccess(`Removed ${location.name} from your visited places!`);
           
           // Clear success message after 3 seconds
@@ -127,6 +168,13 @@ const Dashboard = () => {
           if (selectedLocation && selectedLocation.id === location.id) {
             setSelectedLocation(null);
           }
+          
+          // Update recommendations after removing visit
+          const newVisitedIds = new Set([...visitedLocationIds]);
+          newVisitedIds.delete(location.id);
+          setRecommendations(prev => 
+            updateRecommendations(locations, newVisitedIds)
+          );
         }
       }
     } catch (err) {
@@ -134,6 +182,14 @@ const Dashboard = () => {
       setError(`Failed to ${isNowVisited ? 'add' : 'remove'} visit: ${err.message}`);
     }
   };
+  
+  // Effect to refresh recommendations when switching to recommendations tab
+  useEffect(() => {
+    if (activeTab === 'recommendations' && !loading) {
+      // Generate new recommendations when tab is selected
+      setRecommendations(updateRecommendations(locations, visitedLocationIds));
+    }
+  }, [activeTab, loading, locations, updateRecommendations, visitedLocationIds]);
   
   // Check if a location is already visited
   const isLocationVisited = (locationId) => {
@@ -248,18 +304,31 @@ const Dashboard = () => {
             ) : (
               <div className="h-full overflow-y-auto">
                 <div className="p-4">
-                  <h2 className="text-2xl font-bold mb-4">Recommended Destinations</h2>
+                  <h2 className="text-2xl font-bold mb-4">
+                    Recommended Destinations
+                    <button 
+                      onClick={() => setRecommendations(updateRecommendations(locations, visitedLocationIds))}
+                      className="ml-4 text-sm bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
+                      title="Get new recommendations"
+                    >
+                      Refresh
+                    </button>
+                  </h2>
                   <div className="space-y-4">
-                    {recommendations.map(location => (
-                      <LocationCard
-                        key={location.id}
-                        location={location}
-                        isVisited={isLocationVisited(location.id)}
-                        visitDetails={getVisitDetails(location.id)}
-                        onVisitChange={handleVisitChange}
-                        requireRating={true}
-                      />
-                    ))}
+                    {recommendations.length > 0 ? (
+                      recommendations.map(location => (
+                        <LocationCard
+                          key={location.id}
+                          location={location}
+                          isVisited={isLocationVisited(location.id)}
+                          visitDetails={getVisitDetails(location.id)}
+                          onVisitChange={handleVisitChange}
+                          requireRating={true}
+                        />
+                      ))
+                    ) : (
+                      <p>No recommendations available. You might have visited all locations!</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -271,7 +340,18 @@ const Dashboard = () => {
         <div className="w-full md:w-1/3 bg-gray-100 p-4 overflow-y-auto">
           {selectedLocation ? (
             <div>
-              <h2 className="text-2xl font-bold mb-4">Location Details</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold">Location Details</h2>
+                <button 
+                  onClick={handleReturnToOverview}
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded flex items-center"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  Back to Overview
+                </button>
+              </div>
               <LocationCard 
                 location={selectedLocation} 
                 isVisited={isLocationVisited(selectedLocation.id)}

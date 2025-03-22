@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { getAllLocations, getRecommendations } from '../services/api';
 
 // Custom icon for visited locations
 const createCustomIcon = (iconUrl) => {
@@ -15,11 +14,10 @@ const createCustomIcon = (iconUrl) => {
   });
 };
 
-const Map = ({ userVisits = [], onMarkerClick }) => {
+const Map = ({ userVisits = [], locations = [], recommendations = [], onMarkerClick }) => {
   // State
-  const [locations, setLocations] = useState([]);
-  const [recommendedLocationIds, setRecommendedLocationIds] = useState(new Set());
   const [visitedLocationIds, setVisitedLocationIds] = useState(new Set());
+  const [recommendedLocationIds, setRecommendedLocationIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [iconsLoaded, setIconsLoaded] = useState(false);
@@ -29,42 +27,17 @@ const Map = ({ userVisits = [], onMarkerClick }) => {
   const visitedIcon = useRef(null);
   const recommendedIcon = useRef(null);
   
-  // Load data when component mounts
+  // Initialize icons
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        
-        // Load markers only once
-        regularIcon.current = createCustomIcon('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png');
-        visitedIcon.current = createCustomIcon('https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png');
-        recommendedIcon.current = createCustomIcon('https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png');
-        setIconsLoaded(true);
-        
-        // Fetch locations
-        const locationsResponse = await getAllLocations();
-        if (locationsResponse && locationsResponse.locations) {
-          setLocations(locationsResponse.locations);
-        }
-        
-        // Fetch recommendations
-        const recommendationsResponse = await getRecommendations();
-        if (recommendationsResponse && recommendationsResponse.recommendations) {
-          const recommendedIds = new Set(
-            recommendationsResponse.recommendations.map(rec => rec.id)
-          );
-          setRecommendedLocationIds(recommendedIds);
-        }
-        
-        setLoading(false);
-      } catch (err) {
-        console.error('Error loading map data:', err);
-        setError('Failed to load map data. Please try refreshing.');
-        setLoading(false);
-      }
-    };
-    
-    loadData();
+    try {
+      regularIcon.current = createCustomIcon('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png');
+      visitedIcon.current = createCustomIcon('https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png');
+      recommendedIcon.current = createCustomIcon('https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png');
+      setIconsLoaded(true);
+    } catch (err) {
+      console.error('Error initializing map icons:', err);
+      setError('Failed to initialize map icons.');
+    }
   }, []);
   
   // Update visited locations when userVisits changes
@@ -76,10 +49,22 @@ const Map = ({ userVisits = [], onMarkerClick }) => {
           .map(visit => visit.location.id)
       );
       setVisitedLocationIds(visitedIds);
+      setLoading(false);
     } else {
       setVisitedLocationIds(new Set());
+      setLoading(false);
     }
   }, [userVisits]);
+  
+  // Update recommended locations when recommendations changes
+  useEffect(() => {
+    if (recommendations && recommendations.length > 0) {
+      const recommendedIds = new Set(recommendations.map(rec => rec.id));
+      setRecommendedLocationIds(recommendedIds);
+    } else {
+      setRecommendedLocationIds(new Set());
+    }
+  }, [recommendations]);
   
   // Get the appropriate marker icon based on location status
   const getMarkerIcon = (locationId) => {
@@ -110,7 +95,7 @@ const Map = ({ userVisits = [], onMarkerClick }) => {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         
-        {locations.map(location => (
+        {locations && locations.map(location => (
           <Marker 
             key={location.id} 
             position={[location.latitude, location.longitude]}
