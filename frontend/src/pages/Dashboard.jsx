@@ -4,9 +4,8 @@ import Map from '../components/Map';
 import LocationCard from '../components/LocationCard';
 import RecommendationList from '../components/RecommendationList';
 import Navbar from '../components/Navbar';
-import { getUserVisits, getAllLocations, getRecommendations, addVisit, deleteVisit, verifyAuth } from '../services/api';
+import { getUserVisits, getAllLocations, getRecommendations, addVisit, deleteVisit } from '../services/api';
 import { isAuthenticated } from '../services/auth';
-import axios from 'axios';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -18,50 +17,22 @@ const Dashboard = () => {
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [activeTab, setActiveTab] = useState('map');
   const [visitedLocationIds, setVisitedLocationIds] = useState(new Set());
   
-  // Authentication verification
+  // Load data when component mounts
   useEffect(() => {
-    const checkAuth = async () => {
-      if (!isAuthenticated()) {
-        console.log('User not authenticated, redirecting to login');
-        navigate('/login');
-        return;
-      }
-      
-      // Attempt to verify auth with backend
-      try {
-        console.log('Verifying authentication...');
-        // Log current token
-        const token = localStorage.getItem('token');
-        console.log('Current token:', token?.substring(0, 20) + '...');
-        
-        // Manually set axios auth header for debugging
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        
-        // Try to verify auth
-        await verifyAuth();
-        console.log('Authentication verified successfully');
-      } catch (err) {
-        console.error('Auth verification failed:', err);
-        setError('Authentication failed. Please log in again.');
-        navigate('/login');
-      }
-    };
-    
-    checkAuth();
-  }, [navigate]);
-  
-  // Load initial data
-  useEffect(() => {
+    if (!isAuthenticated()) {
+      navigate('/login');
+      return;
+    }
+
     const loadData = async () => {
       setLoading(true);
       setError('');
       
       try {
-        console.log('Loading dashboard data...');
-        
         // Load data in parallel
         const [locationsData, recommendationsData, visitsData] = await Promise.all([
           getAllLocations(),
@@ -71,10 +42,6 @@ const Dashboard = () => {
             return { visits: [] };
           })
         ]);
-        
-        console.log('Loaded locations:', locationsData?.locations?.length || 0);
-        console.log('Loaded recommendations:', recommendationsData?.recommendations?.length || 0);
-        console.log('Loaded visits:', visitsData?.visits?.length || 0);
         
         // Update state
         if (locationsData?.locations) {
@@ -86,7 +53,6 @@ const Dashboard = () => {
         }
         
         if (visitsData?.visits) {
-          // Filter out visits without location data
           const validVisits = visitsData.visits.filter(visit => visit.location);
           setUserVisits(validVisits);
           
@@ -108,7 +74,7 @@ const Dashboard = () => {
     };
     
     loadData();
-  }, []);
+  }, [navigate]);
   
   // Handle marker click on map
   const handleMarkerClick = (location) => {
@@ -116,18 +82,26 @@ const Dashboard = () => {
   };
   
   // Handle visit toggle (add/remove)
-  const handleVisitChange = async (location, isNowVisited) => {
+  const handleVisitChange = async (location, isNowVisited, rating = null, notes = '') => {
     try {
       if (isNowVisited) {
-        // Add visit
-        console.log(`Adding visit for location ${location.id}`);
-        const response = await addVisit(location.id);
+        // Add visit - rating is required
+        if (rating === null || rating < 1) {
+          setError('Please provide a rating (1-5) before marking as visited');
+          return;
+        }
+        
+        const response = await addVisit(location.id, rating, notes);
         console.log('Visit added:', response);
         
         if (response && response.visit) {
           // Add to state
           setUserVisits(prev => [...prev, response.visit]);
           setVisitedLocationIds(prev => new Set([...prev, location.id]));
+          setSuccess(`Added ${location.name} to your visited places!`);
+          
+          // Clear success message after 3 seconds
+          setTimeout(() => setSuccess(''), 3000);
         }
       } else {
         // Find the visit to remove
@@ -135,7 +109,6 @@ const Dashboard = () => {
         
         if (visit) {
           // Remove visit
-          console.log(`Removing visit ${visit.id} for location ${location.id}`);
           await deleteVisit(visit.id);
           
           // Update state
@@ -145,6 +118,15 @@ const Dashboard = () => {
             newSet.delete(location.id);
             return newSet;
           });
+          setSuccess(`Removed ${location.name} from your visited places!`);
+          
+          // Clear success message after 3 seconds
+          setTimeout(() => setSuccess(''), 3000);
+          
+          // If we're removing the selected location, deselect it
+          if (selectedLocation && selectedLocation.id === location.id) {
+            setSelectedLocation(null);
+          }
         }
       }
     } catch (err) {
@@ -153,7 +135,16 @@ const Dashboard = () => {
     }
   };
   
-  // Handle showing error/loading states
+  // Check if a location is already visited
+  const isLocationVisited = (locationId) => {
+    return visitedLocationIds.has(locationId);
+  };
+  
+  // Get visit details for a location
+  const getVisitDetails = (locationId) => {
+    return userVisits.find(visit => visit.location && visit.location.id === locationId);
+  };
+  
   if (loading) {
     return (
       <div className="flex flex-col h-screen">
@@ -173,19 +164,25 @@ const Dashboard = () => {
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 m-4 rounded">
           <p>{error}</p>
           <button 
-            onClick={() => window.location.reload()}
+            onClick={() => setError('')}
             className="underline mt-2"
           >
-            Refresh Page
+            Dismiss
           </button>
+        </div>
+      )}
+      
+      {success && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 m-4 rounded">
+          <p>{success}</p>
         </div>
       )}
       
       <div className="flex-grow flex flex-col md:flex-row">
         {/* Left side - Map or Recommendations */}
         <div className="w-full md:w-2/3 h-[60vh] md:h-full overflow-hidden">
-          {/* Tabs */}
-          <div className="bg-white p-4 shadow-sm relative dashboard-tabs" style={{ zIndex: 50 }}>
+          {/* Tabs - with fixed position to ensure they're always visible */}
+          <div className="bg-white p-4 shadow-md sticky top-0 z-50">
             <div className="flex border-b">
               {/* Map Tab with Icon */}
               <button
@@ -242,23 +239,25 @@ const Dashboard = () => {
           </div>
           
           {/* Content area */}
-          <div className="h-full dashboard-content" style={{ zIndex: 10 }}>
+          <div className="h-full relative" style={{ height: 'calc(100% - 73px)' }}>
             {activeTab === 'map' ? (
               <Map 
                 userVisits={userVisits} 
-                onMarkerClick={handleMarkerClick} 
+                onMarkerClick={handleMarkerClick}
               />
             ) : (
               <div className="h-full overflow-y-auto">
                 <div className="p-4">
                   <h2 className="text-2xl font-bold mb-4">Recommended Destinations</h2>
                   <div className="space-y-4">
-                    {recommendations.slice(0, 5).map(location => (
+                    {recommendations.map(location => (
                       <LocationCard
                         key={location.id}
                         location={location}
-                        isVisited={visitedLocationIds.has(location.id)}
+                        isVisited={isLocationVisited(location.id)}
+                        visitDetails={getVisitDetails(location.id)}
                         onVisitChange={handleVisitChange}
+                        requireRating={true}
                       />
                     ))}
                   </div>
@@ -268,41 +267,74 @@ const Dashboard = () => {
           </div>
         </div>
         
-        {/* Right side - Selected Location or Visits */}
+        {/* Right side - Selected Location or Brief Stats */}
         <div className="w-full md:w-1/3 bg-gray-100 p-4 overflow-y-auto">
           {selectedLocation ? (
             <div>
-              <h2 className="text-xl font-bold mb-4">Location Details</h2>
+              <h2 className="text-2xl font-bold mb-4">Location Details</h2>
               <LocationCard 
                 location={selectedLocation} 
-                isVisited={visitedLocationIds.has(selectedLocation.id)}
+                isVisited={isLocationVisited(selectedLocation.id)}
+                visitDetails={getVisitDetails(selectedLocation.id)}
                 onVisitChange={handleVisitChange}
                 detailed={true}
+                requireRating={true}
               />
             </div>
           ) : (
             <div>
-              <h2 className="text-xl font-bold mb-4">My Visited Places</h2>
-              {userVisits.length > 0 ? (
-                <div className="space-y-4">
-                  {userVisits.map(visit => visit.location && (
-                    <LocationCard 
-                      key={visit.id}
-                      location={visit.location}
-                      isVisited={true}
-                      onVisitChange={handleVisitChange}
-                    />
-                  ))}
+              <h2 className="text-2xl font-bold mb-4">Your Travel Stats</h2>
+              
+              {/* Summary stats cards */}
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-blue-100 p-4 rounded-lg text-center">
+                  <p className="text-3xl font-bold text-blue-600">{userVisits.length}</p>
+                  <p className="text-gray-700">Places Visited</p>
                 </div>
-              ) : (
-                <div className="bg-white rounded-lg p-4 shadow text-center">
-                  <p className="text-gray-600 mb-4">
-                    You haven't visited any places yet!
+                
+                <div className="bg-green-100 p-4 rounded-lg text-center">
+                  <p className="text-3xl font-bold text-green-600">
+                    {new Set(userVisits.map(v => v.location?.country).filter(Boolean)).size}
                   </p>
-                  <p className="text-gray-600">
-                    Click on a location on the map or in the recommendations 
-                    section to add it to your visited places.
-                  </p>
+                  <p className="text-gray-700">Countries</p>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-lg p-4 shadow mb-4">
+                <h3 className="font-bold text-lg mb-2">How to Use</h3>
+                <p className="text-gray-600 mb-2">
+                  Click on a location on the map or in the recommendations section to view its details and mark it as visited.
+                </p>
+                <p className="text-gray-600">
+                  When marking a location as visited, you'll need to provide a rating from 1 to 5 stars.
+                </p>
+              </div>
+              
+              {userVisits.length > 0 && (
+                <div className="bg-white rounded-lg p-4 shadow">
+                  <h3 className="font-bold text-lg mb-2">Recent Visits</h3>
+                  <ul className="divide-y divide-gray-200">
+                    {userVisits
+                      .slice(0, 3) // Only show 3 most recent visits
+                      .map(visit => visit.location && (
+                        <li key={visit.id} className="py-2">
+                          <div className="flex justify-between">
+                            <p className="font-medium">{visit.location.name}</p>
+                            <div className="flex items-center">
+                              <span className="text-yellow-500 mr-1">★</span>
+                              <span>{visit.rating || "N/A"}</span>
+                            </div>
+                          </div>
+                          <p className="text-sm text-gray-600">{visit.location.city}, {visit.location.country}</p>
+                        </li>
+                      ))}
+                  </ul>
+                  <button 
+                    className="mt-3 text-blue-500 text-sm"
+                    onClick={() => setActiveTab('map')}
+                  >
+                    View all on map
+                  </button>
                 </div>
               )}
             </div>

@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { addVisit } from '../services/api';
 
 // Category icon mapping
 const CategoryIcon = ({ type }) => {
@@ -62,43 +61,82 @@ const getCategoryName = (type) => {
   }
 };
 
-const LocationCard = ({ location, isVisited, onVisitChange, detailed = false }) => {
+const LocationCard = ({ 
+  location, 
+  isVisited, 
+  visitDetails, 
+  onVisitChange, 
+  detailed = false,
+  requireRating = true 
+}) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  
+  // State for rating and notes
+  const [rating, setRating] = useState(visitDetails?.rating || 0);
+  const [notes, setNotes] = useState(visitDetails?.notes || '');
+  const [showRatingSelector, setShowRatingSelector] = useState(false);
 
-  const handleVisitToggle = async () => {
-    if (!location || !location.id) {
-      setError('Invalid location data');
-      return;
+  // Handle visit button click
+  const handleVisitToggle = () => {
+    if (isVisited) {
+      // Simply remove the visit
+      handleSubmitVisit(false);
+    } else if (requireRating) {
+      // Show rating selector first
+      setShowRatingSelector(true);
+    } else {
+      // Add visit without rating
+      handleSubmitVisit(true);
     }
-    
+  };
+  
+  // Handle actual submission after rating is selected
+  const handleSubmitVisit = (adding) => {
     setLoading(true);
     setError('');
-    setSuccess('');
     
     try {
-      if (isVisited) {
-        // The parent component handles removal
-        if (onVisitChange) {
-          onVisitChange(location, false);
-        }
-      } else {
-        // Add a visit with direct API call for simplicity
-        console.log(`Adding visit for location ${location.id}`);
-        await addVisit(location.id);
-        setSuccess('Location marked as visited!');
-        
-        // Notify parent component
-        if (onVisitChange) {
-          onVisitChange(location, true);
-        }
+      // Check if rating is required but not provided
+      if (adding && requireRating && (!rating || rating < 1)) {
+        setError('Please select a rating (1-5) before marking as visited');
+        setLoading(false);
+        return;
       }
+      
+      // Call parent handler
+      if (onVisitChange) {
+        onVisitChange(location, adding, rating, notes);
+      }
+      
+      // Hide rating selector
+      setShowRatingSelector(false);
+      
+      // Show success message
+      setSuccess(adding ? 'Location marked as visited!' : 'Location removed from visits');
+      setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      console.error('Failed to update visit:', err);
       setError('Failed to update. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+  
+  // Handle rating change
+  const handleRatingChange = (newRating) => {
+    setRating(newRating);
+    
+    // If already visited, update the rating
+    if (isVisited && onVisitChange) {
+      onVisitChange(location, true, newRating, notes);
+    }
+  };
+  
+  // Handle notes change
+  const handleNotesChange = () => {
+    if (isVisited && onVisitChange) {
+      onVisitChange(location, true, rating, notes);
     }
   };
 
@@ -108,7 +146,7 @@ const LocationCard = ({ location, isVisited, onVisitChange, detailed = false }) 
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden mb-4">
+    <div className={`bg-white rounded-lg shadow-md overflow-hidden mb-4 ${isVisited ? 'border-l-4 border-green-500' : ''}`}>
       {/* Card Header */}
       <div className={`p-4 ${isVisited ? 'bg-green-50' : 'bg-gray-50'}`}>
         <div className="flex justify-between items-start">
@@ -116,7 +154,9 @@ const LocationCard = ({ location, isVisited, onVisitChange, detailed = false }) 
             <CategoryIcon type={location.type} />
             <div className="ml-2">
               <h3 className="text-xl font-bold">{location.name}</h3>
-              <p className="text-gray-600">{location.city}, {location.country}</p>
+              <p className="text-gray-600">
+                {location.city}, {location.country}
+              </p>
             </div>
           </div>
           
@@ -156,25 +196,111 @@ const LocationCard = ({ location, isVisited, onVisitChange, detailed = false }) 
           </div>
         </div>
         
-        {/* Visit button */}
-        <button
-          className={`w-full py-2 px-4 rounded transition-colors ${
-            isVisited
-              ? 'bg-red-500 hover:bg-red-600 text-white'
-              : 'bg-green-500 hover:bg-green-600 text-white'
-          }`}
-          onClick={handleVisitToggle}
-          disabled={loading}
-        >
-          {loading ? 'Processing...' : isVisited ? 'Remove from Visited' : 'Mark as Visited'}
-        </button>
+        {/* Rating selector (when adding a new visit) */}
+        {showRatingSelector && !isVisited && (
+          <div className="mb-4 p-3 bg-gray-50 rounded-md border border-gray-200">
+            <h4 className="text-sm font-semibold mb-2">Rate this location (required):</h4>
+            <div className="flex mb-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setRating(i + 1)}
+                  className={`text-2xl ${i < rating ? 'text-yellow-500' : 'text-gray-300'} focus:outline-none`}
+                >
+                  ★
+                </button>
+              ))}
+            </div>
+            
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Notes (optional):
+              </label>
+              <textarea
+                className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                rows="2"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add your thoughts about this place..."
+              ></textarea>
+            </div>
+            
+            <div className="flex space-x-2">
+              <button
+                onClick={() => handleSubmitVisit(true)}
+                disabled={rating < 1 || loading}
+                className={`py-1 px-3 rounded text-white ${
+                  rating < 1 ? 'bg-gray-400' : 'bg-green-500 hover:bg-green-600'
+                }`}
+              >
+                {loading ? 'Saving...' : 'Add Visit'}
+              </button>
+              <button
+                onClick={() => setShowRatingSelector(false)}
+                className="py-1 px-3 rounded border border-gray-300 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
         
+        {/* Visit rating and notes (when already visited) */}
+        {isVisited && (
+          <div className="mb-4 p-3 bg-green-50 rounded-md border border-green-200">
+            <div className="flex justify-between items-center mb-2">
+              <h4 className="text-sm font-semibold">Your Rating:</h4>
+              <div className="flex">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleRatingChange(i + 1)}
+                    className={`text-xl ${i < rating ? 'text-yellow-500' : 'text-gray-300'} focus:outline-none`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Your Notes:
+              </label>
+              <textarea
+                className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                rows="2"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                onBlur={handleNotesChange}
+                placeholder="Add your thoughts about this place..."
+              ></textarea>
+            </div>
+          </div>
+        )}
+        
+        {/* Error/success messages */}
         {error && (
-          <p className="mt-2 text-red-500 text-sm">{error}</p>
+          <p className="text-red-500 text-sm mb-2">{error}</p>
         )}
         
         {success && (
-          <p className="mt-2 text-green-500 text-sm">{success}</p>
+          <p className="text-green-500 text-sm mb-2">{success}</p>
+        )}
+        
+        {/* Visit Button */}
+        {!showRatingSelector && (
+          <button
+            onClick={handleVisitToggle}
+            className={`w-full py-2 px-4 rounded transition-colors ${
+              isVisited
+                ? 'bg-red-500 hover:bg-red-600 text-white'
+                : 'bg-green-500 hover:bg-green-600 text-white'
+            }`}
+            disabled={loading}
+          >
+            {loading ? 'Processing...' : isVisited ? 'Remove from Visited' : 'Mark as Visited'}
+          </button>
         )}
       </div>
     </div>

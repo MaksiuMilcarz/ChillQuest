@@ -89,6 +89,22 @@ def add_visit():
             print(f"Invalid location_id format: {data.get('location_id')}")
             return jsonify({'message': 'location_id must be an integer'}), 400
         
+        # Check for rating (required for new visits)
+        is_new_visit = not Visit.query.filter_by(user_id=user_id, location_id=location_id).first()
+        if is_new_visit and ('rating' not in data or data['rating'] is None):
+            print("Missing required rating for new visit")
+            return jsonify({'message': 'Rating is required when adding a new visit'}), 400
+            
+        if is_new_visit and data.get('rating') is not None:
+            try:
+                rating = int(data['rating'])
+                if rating < 1 or rating > 5:
+                    print(f"Invalid rating value: {rating}")
+                    return jsonify({'message': 'Rating must be between 1 and 5'}), 400
+            except (ValueError, TypeError):
+                print(f"Invalid rating format: {data['rating']}")
+                return jsonify({'message': 'Rating must be a number between 1 and 5'}), 400
+        
         print(f"Processing visit - User: {user_id}, Location: {data['location_id']}")
         
         # Check if location exists
@@ -106,8 +122,16 @@ def add_visit():
         if existing_visit:
             # Update existing visit
             print(f"Updating existing visit ID: {existing_visit.id}")
-            if 'rating' in data:
-                existing_visit.rating = data['rating']
+            if 'rating' in data and data['rating'] is not None:
+                try:
+                    rating = int(data['rating'])
+                    if 1 <= rating <= 5:
+                        existing_visit.rating = rating
+                    else:
+                        print(f"Invalid rating value for update: {rating}")
+                except (ValueError, TypeError):
+                    print(f"Invalid rating format for update: {data['rating']}")
+            
             if 'notes' in data:
                 existing_visit.notes = data['notes']
             
@@ -123,11 +147,14 @@ def add_visit():
                 'visit': visit_data
             }), 200
         
-        # Create new visit
+        # Create new visit - ensure rating is provided
+        if 'rating' not in data or data['rating'] is None:
+            return jsonify({'message': 'Rating is required for new visits'}), 400
+            
         visit = Visit(
             user_id=user_id,
             location_id=data['location_id'],
-            rating=data.get('rating'),
+            rating=data['rating'],
             notes=data.get('notes', '')
         )
         

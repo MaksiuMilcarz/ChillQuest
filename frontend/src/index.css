@@ -2,33 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Important Leaflet CSS fixes */
-.leaflet-container {
-  width: 100%;
-  height: 100%;
-}
-
 /* Fix default Leaflet marker & shadow icons */
 .leaflet-div-icon {
   background: transparent;
   border: none;
-}
-
-/* Explicitly set the map height */
-.map-container {
-  height: 70vh;
-  width: 100%;
-  z-index: 0;
-}
-
-/* Prevent z-index issues with dropdowns */
-.leaflet-pane {
-  z-index: 1;
-}
-
-.leaflet-top,
-.leaflet-bottom {
-  z-index: 2;
 }
 
 /* Fix authentication form layout */
@@ -44,12 +21,6 @@
   height: 100vh;
 }
 
-.dashboard-content {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
-
 .dashboard-map {
   flex: 2;
   height: 100%;
@@ -62,21 +33,34 @@
   padding: 1rem;
 }
 
+/* Keep the dashboard content properly layered */
+.dashboard-content {
+  position: relative;
+}
+
+/* Improved map container with proper z-index */
+.map-container {
+  height: calc(100% - 10px);
+  width: 100%;
+  z-index: 1;
+  position: relative;
+}
+
+/* Fix leaflet container z-index */
 .leaflet-container {
   width: 100%;
   height: 100%;
   z-index: 1;
 }
 
-/* Make sure the map container has appropriate z-index */
-.map-container {
-  height: calc(100% - 52px); /* Account for the tab height */
-  width: 100%;
-  z-index: 1;
-  position: relative;
+/* Ensure tabs remain at the top */
+.sticky {
+  position: sticky;
+  top: 0;
+  z-index: 50;
 }
 
-/* Fix z-index issues with elements */
+/* Fix z-index issues with leaflet elements */
 .leaflet-pane {
   z-index: 5;
 }
@@ -86,29 +70,18 @@
   z-index: 10;
 }
 
-/* Tab navigation should always be on top */
-.dashboard-tabs {
-  position: relative;
-  z-index: 50;
-}
-
-/* Make sure popups appear above the map */
+/* Ensure popups appear above the map */
 .leaflet-popup {
   z-index: 20;
 }
 
-/* Fix Leaflet marker icons */
+/* Fix marker icon styles */
 .leaflet-marker-icon {
   border: none !important;
   background-color: transparent !important;
 }
 
-/* Keep the dashboard content properly layered */
-.dashboard-content {
-  position: relative;
-}
-
-/* Fix position of map legends and controls */
+/* Make the map legend clearly visible */
 .map-legend {
   position: absolute;
   bottom: 20px;
@@ -120,3 +93,31 @@
   box-shadow: 0 1px 5px rgba(0,0,0,0.2);
 }
 
+/* Fix tab display */
+.dashboard-tabs {
+  position: relative;
+  z-index: 50;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Ensure card styling is consistent */
+.location-card {
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1rem;
+}
+
+/* Make rating stars more visible */
+.rating-star {
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.rating-star.active {
+  color: #f59e0b;
+}
+
+.rating-star.inactive {
+  color: #d1d5db;
+}
