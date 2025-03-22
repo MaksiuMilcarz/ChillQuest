@@ -33,6 +33,7 @@ const Dashboard = () => {
       // If no visit history or no unvisited locations, return random selection
       if (visitedIds.size === 0 || userVisits.length === 0 || unvisitedLocations.length === 0) {
         let shuffled = [...unvisitedLocations].sort(() => 0.5 - Math.random());
+        console.log("RANDOMIZING  RECOMMENDATIONS - ERRRRROR!")
         return shuffled.slice(0, 10);
       }
       
@@ -105,21 +106,21 @@ const Dashboard = () => {
         // Base score from location's overall rating (0-5 points)
         score += location.rating || 3;
         
-        // Country preference bonus (0-3 points)
+        // Country preference bonus (0-10 points)
         const countryBonus = location.country && countryPreferences[location.country] 
-          ? (countryPreferences[location.country] / totalCountryRating) * 3 
+          ? (countryPreferences[location.country] / totalCountryRating) * 50 
           : 0;
         score += countryBonus;
         
-        // Type preference bonus (0-4 points)
+        // Type preference bonus (0-10 points)
         const typeBonus = location.type && typePreferences[location.type] 
-          ? (typePreferences[location.type] / totalTypeRating) * 4 
+          ? (typePreferences[location.type] / totalTypeRating) * 75 
           : 0;
         score += typeBonus;
         
-        // Price preference bonus (0-2 points)
+        // Price preference bonus (0-3 points)
         const priceBonus = location.price_level && pricePreferences[location.price_level] 
-          ? (pricePreferences[location.price_level] / totalPriceRating) * 2 
+          ? (pricePreferences[location.price_level] / totalPriceRating) * 20 
           : 0;
         score += priceBonus;
         
@@ -132,25 +133,30 @@ const Dashboard = () => {
         };
       });
       
-      // Sort by score (descending) and take top 25
-      const top25 = scoredLocations
+      const top10 = scoredLocations
         .sort((a, b) => b.score - a.score)
-        .slice(0, Math.min(25, scoredLocations.length));
+        .slice(0, Math.min(10, scoredLocations.length));
+
+      // Sort by score (descending) and take top 20
+      // const top20 = scoredLocations
+      //   .sort((a, b) => b.score - a.score)
+      //   .slice(0, Math.min(20, scoredLocations.length));
         
-      // Randomly sample 10 from the top 25
+      // Randomly sample 10 from the top 20
       let sampledRecommendations = [];
-      
-      if (top25.length <= 10) {
-        sampledRecommendations = [...top25];
-      } else {
-        // Use a more efficient random sampling method
-        const indices = Array.from({ length: top25.length }, (_, i) => i);
-        for (let i = 0; i < 10; i++) {
-          const randomIndex = Math.floor(Math.random() * indices.length);
-          sampledRecommendations.push(top25[indices[randomIndex]]);
-          indices.splice(randomIndex, 1);
-        }
-      }
+      sampledRecommendations = [...top10]
+
+      // if (top20.length <= 10) {
+      //   sampledRecommendations = [...top20];
+      // } else {
+      //   // Use a more efficient random sampling method
+      //   const indices = Array.from({ length: top20.length }, (_, i) => i);
+      //   for (let i = 0; i < 10; i++) {
+      //     const randomIndex = Math.floor(Math.random() * indices.length);
+      //     sampledRecommendations.push(top20[indices[randomIndex]]);
+      //     indices.splice(randomIndex, 1);
+      //   }
+      // }
       
       // Sort the sampled recommendations by score (highest first)
       sampledRecommendations.sort((a, b) => b.score - a.score);
@@ -166,6 +172,8 @@ const Dashboard = () => {
       const unvisitedLocations = allLocations.filter(
         location => !visitedIds.has(location.id)
       );
+      // print a message in console
+      console.log("RANDOMIZING  RECOMMENDATIONS - ERRRRROR!")
       let shuffled = [...unvisitedLocations].sort(() => 0.5 - Math.random());
       return shuffled.slice(0, 10);
     }
