@@ -22,22 +22,154 @@ const Dashboard = () => {
   
   // Function to update recommendations - separated as requested
   const updateRecommendations = useCallback((allLocations, visitedIds) => {
-    if (!allLocations || allLocations.length === 0) return [];
-    
-    // Filter out visited locations
-    const unvisitedLocations = allLocations.filter(
-      location => !visitedIds.has(location.id)
-    );
-    
-    // Randomize selection from unvisited locations
-    let shuffled = [...unvisitedLocations].sort(() => 0.5 - Math.random());
-    
-    // Select up to 10 random locations for recommendations
-    const randomRecommendations = shuffled.slice(0, 10);
-    
-    console.log(`Generated ${randomRecommendations.length} new recommendations`);
-    return randomRecommendations;
-  }, []);
+    try {
+      if (!allLocations || allLocations.length === 0) return [];
+      
+      // Filter out visited locations
+      const unvisitedLocations = allLocations.filter(
+        location => !visitedIds.has(location.id)
+      );
+      
+      // If no visit history or no unvisited locations, return random selection
+      if (visitedIds.size === 0 || userVisits.length === 0 || unvisitedLocations.length === 0) {
+        let shuffled = [...unvisitedLocations].sort(() => 0.5 - Math.random());
+        return shuffled.slice(0, 10);
+      }
+      
+      // Create a safe copy of visits with proper type checking
+      const validVisits = userVisits.filter(visit => 
+        visit && 
+        visit.location && 
+        visit.location.id && 
+        visit.rating && 
+        visit.visit_date
+      );
+      
+      if (validVisits.length === 0) {
+        // Fallback to random if we don't have valid visits
+        let shuffled = [...unvisitedLocations].sort(() => 0.5 - Math.random());
+        return shuffled.slice(0, 10);
+      }
+      
+      // Sort visits by date (most recent first)
+      const sortedVisits = [...validVisits].sort((a, b) => 
+        new Date(b.visit_date) - new Date(a.visit_date)
+      );
+      
+      // Calculate recency weights
+      const recencyWeights = {};
+      const decayFactor = 0.85;
+      
+      sortedVisits.forEach((visit, index) => {
+        recencyWeights[visit.location.id] = Math.pow(decayFactor, index);
+      });
+      
+      // Initialize preference models
+      const countryPreferences = {};
+      const typePreferences = {};
+      const pricePreferences = {};
+      
+      // Process each visit
+      sortedVisits.forEach(visit => {
+        const location = visit.location;
+        const rating = visit.rating || 3;
+        const recencyWeight = recencyWeights[location.id] || 0.5;
+        
+        const weightedRating = rating * recencyWeight;
+        
+        // Country preferences
+        if (location.country) {
+          countryPreferences[location.country] = (countryPreferences[location.country] || 0) + weightedRating;
+        }
+        
+        // Type preferences
+        if (location.type) {
+          typePreferences[location.type] = (typePreferences[location.type] || 0) + weightedRating;
+        }
+        
+        // Price preferences
+        if (location.price_level) {
+          pricePreferences[location.price_level] = (pricePreferences[location.price_level] || 0) + weightedRating;
+        }
+      });
+      
+      // Calculate totals for normalization
+      const totalCountryRating = Object.values(countryPreferences).reduce((sum, val) => sum + val, 0) || 1;
+      const totalTypeRating = Object.values(typePreferences).reduce((sum, val) => sum + val, 0) || 1;
+      const totalPriceRating = Object.values(pricePreferences).reduce((sum, val) => sum + val, 0) || 1;
+      
+      // Score each unvisited location
+      const scoredLocations = unvisitedLocations.map(location => {
+        let score = 0;
+        
+        // Base score from location's overall rating (0-5 points)
+        score += location.rating || 3;
+        
+        // Country preference bonus (0-3 points)
+        const countryBonus = location.country && countryPreferences[location.country] 
+          ? (countryPreferences[location.country] / totalCountryRating) * 3 
+          : 0;
+        score += countryBonus;
+        
+        // Type preference bonus (0-4 points)
+        const typeBonus = location.type && typePreferences[location.type] 
+          ? (typePreferences[location.type] / totalTypeRating) * 4 
+          : 0;
+        score += typeBonus;
+        
+        // Price preference bonus (0-2 points)
+        const priceBonus = location.price_level && pricePreferences[location.price_level] 
+          ? (pricePreferences[location.price_level] / totalPriceRating) * 2 
+          : 0;
+        score += priceBonus;
+        
+        // Add some randomness for exploration (0-1 points)
+        score += Math.random();
+        
+        return {
+          ...location,
+          score
+        };
+      });
+      
+      // Sort by score (descending) and take top 25
+      const top25 = scoredLocations
+        .sort((a, b) => b.score - a.score)
+        .slice(0, Math.min(25, scoredLocations.length));
+        
+      // Randomly sample 10 from the top 25
+      let sampledRecommendations = [];
+      
+      if (top25.length <= 10) {
+        sampledRecommendations = [...top25];
+      } else {
+        // Use a more efficient random sampling method
+        const indices = Array.from({ length: top25.length }, (_, i) => i);
+        for (let i = 0; i < 10; i++) {
+          const randomIndex = Math.floor(Math.random() * indices.length);
+          sampledRecommendations.push(top25[indices[randomIndex]]);
+          indices.splice(randomIndex, 1);
+        }
+      }
+      
+      // Sort the sampled recommendations by score (highest first)
+      sampledRecommendations.sort((a, b) => b.score - a.score);
+      
+      // Remove the score property
+      return sampledRecommendations.map(item => {
+        const { score, ...locationWithoutScore } = item;
+        return locationWithoutScore;
+      });
+    } catch (error) {
+      console.error("Error in recommendation system:", error);
+      // Fallback to simple random recommendation if anything fails
+      const unvisitedLocations = allLocations.filter(
+        location => !visitedIds.has(location.id)
+      );
+      let shuffled = [...unvisitedLocations].sort(() => 0.5 - Math.random());
+      return shuffled.slice(0, 10);
+    }
+  }, []); // Keep dependency array empty to prevent infinite loops
   
   // Load data when component mounts
   useEffect(() => {

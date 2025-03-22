@@ -24,7 +24,7 @@ const App = () => {
   // Initialize application state
   useEffect(() => {
     // Add app version check
-    const APP_VERSION = '1.0.1'; // Increment this whenever you deploy changes
+    const APP_VERSION = '1.5.2'; // Increment this whenever you deploy changes
     const storedVersion = localStorage.getItem('appVersion');
     
     if (storedVersion !== APP_VERSION) {
