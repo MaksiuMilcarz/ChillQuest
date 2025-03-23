@@ -1,3 +1,7 @@
+# run with the following command:
+docker compose up --build
+
+
 # ChillQuest Web Application
 
 A full-stack web application for discovering exciting destinations and getting personalized recommendations.
